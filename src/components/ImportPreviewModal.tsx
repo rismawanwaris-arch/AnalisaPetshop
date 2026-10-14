@@ -12,6 +12,21 @@ import {
   Loader2,
 } from "lucide-react";
 
+export interface DateDetectionInfo {
+  totalDaysInFile: number;
+  alreadyUploadedDays: number;
+  newDays: number;
+  status: "COMPLETELY_NEW" | "PARTIAL_OVERLAP" | "FULL_OVERLAP";
+  periodStart: string | null;
+  periodEnd: string | null;
+  alreadyUploadedPeriodStart?: string | null;
+  alreadyUploadedPeriodEnd?: string | null;
+  newPeriodStart?: string | null;
+  newPeriodEnd?: string | null;
+  alreadyUploadedDatesSample: string[];
+  newDatesSample: string[];
+}
+
 export interface PreviewData {
   type: "SALES" | "PURCHASES" | "MASTER_ITEMS";
   filename: string;
@@ -23,6 +38,7 @@ export interface PreviewData {
   uniqueTransactions?: number;
   periodStart?: string | null;
   periodEnd?: string | null;
+  dateDetection?: DateDetectionInfo;
   sampleRows: any[];
   errors?: string[];
 }
@@ -158,6 +174,125 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Automatic Date Detection & Overlap Analysis */}
+          {previewData.dateDetection && (
+            <div className="p-4 rounded-xl bg-slate-50/90 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shrink-0">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800">
+                      Pendeteksi Otomatis Periode Tanggal
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Pengecekan otomatis rentang tanggal transaksi terhadap database
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  {previewData.dateDetection.status === "COMPLETELY_NEW" && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Periode Baru (Belum Ada di Database)
+                    </span>
+                  )}
+                  {previewData.dateDetection.status === "PARTIAL_OVERLAP" && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                      Sebagian Periode Sudah Ter-upload
+                    </span>
+                  )}
+                  {previewData.dateDetection.status === "FULL_OVERLAP" && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                      Seluruh Periode Pernah Ter-upload
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Metric mini pills */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <span className="text-[11px] text-slate-500 block">Total Hari dalam File</span>
+                  <span className="font-bold text-slate-800 text-sm block mt-0.5">
+                    {previewData.dateDetection.totalDaysInFile} Hari Transaksi
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate mt-0.5">
+                    {formatDate(previewData.dateDetection.periodStart)} - {formatDate(previewData.dateDetection.periodEnd)}
+                  </span>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <span className="text-[11px] text-slate-500 block">Sudah Ada di Database</span>
+                  <span className={`font-bold text-sm block mt-0.5 ${previewData.dateDetection.alreadyUploadedDays > 0 ? "text-amber-700" : "text-slate-700"}`}>
+                    {previewData.dateDetection.alreadyUploadedDays} Hari
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate mt-0.5">
+                    {previewData.dateDetection.alreadyUploadedDays > 0
+                      ? `${formatDate(previewData.dateDetection.alreadyUploadedPeriodStart)} - ${formatDate(previewData.dateDetection.alreadyUploadedPeriodEnd)}`
+                      : "Tidak ada tanggal duplikat"}
+                  </span>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <span className="text-[11px] text-slate-500 block">Hari / Periode Baru</span>
+                  <span className={`font-bold text-sm block mt-0.5 ${previewData.dateDetection.newDays > 0 ? "text-emerald-700" : "text-slate-500"}`}>
+                    {previewData.dateDetection.newDays} Hari
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate mt-0.5">
+                    {previewData.dateDetection.newDays > 0
+                      ? `${formatDate(previewData.dateDetection.newPeriodStart)} - ${formatDate(previewData.dateDetection.newPeriodEnd)}`
+                      : "Tidak ada hari baru"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Sample Dates List */}
+              {previewData.dateDetection.alreadyUploadedDays > 0 && (
+                <div className="text-[11px] bg-amber-50/70 p-2.5 rounded-lg border border-amber-200/80 text-amber-900">
+                  <span className="font-semibold block mb-1">
+                    📌 Tanggal transaksi yang sudah terdeteksi ada di sistem ({previewData.dateDetection.alreadyUploadedDays} hari):
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {previewData.dateDetection.alreadyUploadedDatesSample.map((dt) => (
+                      <span key={dt} className="px-1.5 py-0.5 rounded bg-white border border-amber-200 font-mono text-[10px] text-amber-800">
+                        {formatDate(dt)}
+                      </span>
+                    ))}
+                    {previewData.dateDetection.alreadyUploadedDays > previewData.dateDetection.alreadyUploadedDatesSample.length && (
+                      <span className="px-1.5 py-0.5 text-[10px] text-amber-700 font-medium">
+                        +{previewData.dateDetection.alreadyUploadedDays - previewData.dateDetection.alreadyUploadedDatesSample.length} hari lainnya...
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {previewData.dateDetection.newDays > 0 && (
+                <div className="text-[11px] bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200/80 text-emerald-900">
+                  <span className="font-semibold block mb-1">
+                    ✨ Tanggal transaksi baru ({previewData.dateDetection.newDays} hari):
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {previewData.dateDetection.newDatesSample.map((dt) => (
+                      <span key={dt} className="px-1.5 py-0.5 rounded bg-white border border-emerald-200 font-mono text-[10px] text-emerald-800">
+                        {formatDate(dt)}
+                      </span>
+                    ))}
+                    {previewData.dateDetection.newDays > previewData.dateDetection.newDatesSample.length && (
+                      <span className="px-1.5 py-0.5 text-[10px] text-emerald-700 font-medium">
+                        +{previewData.dateDetection.newDays - previewData.dateDetection.newDatesSample.length} hari lainnya...
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Alert Status Banner */}
           {isAllDuplicate && (

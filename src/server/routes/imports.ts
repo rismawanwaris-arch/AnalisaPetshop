@@ -68,6 +68,56 @@ router.post("/preview/sales", upload.single("file"), async (req: Request, res: R
     const periodEnd = validTimestamps.length > 0 ? new Date(Math.max(...validTimestamps)) : null;
     const uniqueTransactions = new Set(rows.map((r) => r.noTransaksi)).size;
 
+    // Automatic Date Detection vs Database
+    const fileDatesMap = new Map<string, number>();
+    for (const r of rows) {
+      if (!isNaN(r.tanggal.getTime())) {
+        const dStr = r.tanggal.toISOString().split("T")[0];
+        fileDatesMap.set(dStr, (fileDatesMap.get(dStr) || 0) + 1);
+      }
+    }
+    const fileDistinctDates = Array.from(fileDatesMap.keys()).sort();
+
+    // Query which dates already exist in DB
+    const existingSalesDates = await prisma.sale.findMany({
+      where: {
+        tanggal: {
+          in: fileDistinctDates.map((d) => new Date(d)),
+        },
+      },
+      select: { tanggal: true },
+      distinct: ["tanggal"],
+    });
+
+    const existingDateSet = new Set(
+      existingSalesDates.map((s) => s.tanggal.toISOString().split("T")[0])
+    );
+
+    const alreadyUploadedDates = fileDistinctDates.filter((d) => existingDateSet.has(d));
+    const newDates = fileDistinctDates.filter((d) => !existingDateSet.has(d));
+
+    let dateOverlapStatus: "COMPLETELY_NEW" | "PARTIAL_OVERLAP" | "FULL_OVERLAP" = "COMPLETELY_NEW";
+    if (alreadyUploadedDates.length === fileDistinctDates.length && fileDistinctDates.length > 0) {
+      dateOverlapStatus = "FULL_OVERLAP";
+    } else if (alreadyUploadedDates.length > 0) {
+      dateOverlapStatus = "PARTIAL_OVERLAP";
+    }
+
+    const dateDetection = {
+      totalDaysInFile: fileDistinctDates.length,
+      alreadyUploadedDays: alreadyUploadedDates.length,
+      newDays: newDates.length,
+      status: dateOverlapStatus,
+      periodStart: fileDistinctDates[0] || null,
+      periodEnd: fileDistinctDates[fileDistinctDates.length - 1] || null,
+      alreadyUploadedPeriodStart: alreadyUploadedDates[0] || null,
+      alreadyUploadedPeriodEnd: alreadyUploadedDates[alreadyUploadedDates.length - 1] || null,
+      newPeriodStart: newDates[0] || null,
+      newPeriodEnd: newDates[newDates.length - 1] || null,
+      alreadyUploadedDatesSample: alreadyUploadedDates.slice(0, 10),
+      newDatesSample: newDates.slice(0, 10),
+    };
+
     res.json({
       type: "SALES",
       filename: req.file.originalname,
@@ -78,6 +128,7 @@ router.post("/preview/sales", upload.single("file"), async (req: Request, res: R
       uniqueTransactions,
       periodStart,
       periodEnd,
+      dateDetection,
       sampleRows,
       errors: errors.slice(0, 5),
     });
@@ -123,6 +174,55 @@ router.post("/preview/purchases", upload.single("file"), async (req: Request, re
     const periodStart = validTimestamps.length > 0 ? new Date(Math.min(...validTimestamps)) : null;
     const periodEnd = validTimestamps.length > 0 ? new Date(Math.max(...validTimestamps)) : null;
 
+    // Automatic Date Detection vs Database
+    const fileDatesMap = new Map<string, number>();
+    for (const inv of invoices) {
+      if (!isNaN(inv.tanggal.getTime())) {
+        const dStr = inv.tanggal.toISOString().split("T")[0];
+        fileDatesMap.set(dStr, (fileDatesMap.get(dStr) || 0) + 1);
+      }
+    }
+    const fileDistinctDates = Array.from(fileDatesMap.keys()).sort();
+
+    const existingPurchaseDates = await prisma.purchaseInvoice.findMany({
+      where: {
+        tanggal: {
+          in: fileDistinctDates.map((d) => new Date(d)),
+        },
+      },
+      select: { tanggal: true },
+      distinct: ["tanggal"],
+    });
+
+    const existingDateSet = new Set(
+      existingPurchaseDates.map((p) => p.tanggal.toISOString().split("T")[0])
+    );
+
+    const alreadyUploadedDates = fileDistinctDates.filter((d) => existingDateSet.has(d));
+    const newDates = fileDistinctDates.filter((d) => !existingDateSet.has(d));
+
+    let dateOverlapStatus: "COMPLETELY_NEW" | "PARTIAL_OVERLAP" | "FULL_OVERLAP" = "COMPLETELY_NEW";
+    if (alreadyUploadedDates.length === fileDistinctDates.length && fileDistinctDates.length > 0) {
+      dateOverlapStatus = "FULL_OVERLAP";
+    } else if (alreadyUploadedDates.length > 0) {
+      dateOverlapStatus = "PARTIAL_OVERLAP";
+    }
+
+    const dateDetection = {
+      totalDaysInFile: fileDistinctDates.length,
+      alreadyUploadedDays: alreadyUploadedDates.length,
+      newDays: newDates.length,
+      status: dateOverlapStatus,
+      periodStart: fileDistinctDates[0] || null,
+      periodEnd: fileDistinctDates[fileDistinctDates.length - 1] || null,
+      alreadyUploadedPeriodStart: alreadyUploadedDates[0] || null,
+      alreadyUploadedPeriodEnd: alreadyUploadedDates[alreadyUploadedDates.length - 1] || null,
+      newPeriodStart: newDates[0] || null,
+      newPeriodEnd: newDates[newDates.length - 1] || null,
+      alreadyUploadedDatesSample: alreadyUploadedDates.slice(0, 10),
+      newDatesSample: newDates.slice(0, 10),
+    };
+
     const sampleRows = invoices.slice(0, 12).map((inv) => ({
       noFaktur: inv.noFaktur,
       tanggal: inv.tanggal,
@@ -143,6 +243,7 @@ router.post("/preview/purchases", upload.single("file"), async (req: Request, re
       duplicateCount,
       periodStart,
       periodEnd,
+      dateDetection,
       sampleRows,
       errors: errors.slice(0, 5),
     });
@@ -671,6 +772,80 @@ router.post("/master-items", upload.single("file"), async (req: Request, res: Re
     res.json({ success: true, count: upsertCount, total: items.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Gagal memproses master item" });
+  }
+});
+
+// GET /api/imports/periods - Query all currently uploaded periods in DB
+router.get("/periods", async (req: Request, res: Response) => {
+  try {
+    const monthlySales: any[] = await prisma.$queryRaw`
+      SELECT 
+        TO_CHAR(tanggal, 'YYYY-MM') as month,
+        MIN(tanggal) as min_date,
+        MAX(tanggal) as max_date,
+        COUNT(DISTINCT tanggal)::int as days_count,
+        COUNT(*)::int as row_count
+      FROM sales
+      GROUP BY TO_CHAR(tanggal, 'YYYY-MM')
+      ORDER BY month DESC
+    `;
+
+    const monthlyPurchases: any[] = await prisma.$queryRaw`
+      SELECT 
+        TO_CHAR(tanggal, 'YYYY-MM') as month,
+        MIN(tanggal) as min_date,
+        MAX(tanggal) as max_date,
+        COUNT(DISTINCT tanggal)::int as days_count,
+        COUNT(*)::int as invoices_count,
+        COALESCE(SUM(total), 0)::float as total_amount
+      FROM purchase_invoices
+      GROUP BY TO_CHAR(tanggal, 'YYYY-MM')
+      ORDER BY month DESC
+    `;
+
+    const salesOverall = await prisma.sale.aggregate({
+      _min: { tanggal: true },
+      _max: { tanggal: true },
+      _count: { id: true },
+    });
+
+    const purchasesOverall = await prisma.purchaseInvoice.aggregate({
+      _min: { tanggal: true },
+      _max: { tanggal: true },
+      _count: { id: true },
+      _sum: { total: true },
+    });
+
+    res.json({
+      sales: {
+        minDate: salesOverall._min.tanggal,
+        maxDate: salesOverall._max.tanggal,
+        totalRows: salesOverall._count.id,
+        months: monthlySales.map((m) => ({
+          month: m.month,
+          minDate: m.min_date,
+          maxDate: m.max_date,
+          daysCount: m.days_count,
+          rowCount: m.row_count,
+        })),
+      },
+      purchases: {
+        minDate: purchasesOverall._min.tanggal,
+        maxDate: purchasesOverall._max.tanggal,
+        totalInvoices: purchasesOverall._count.id,
+        totalAmount: Number(purchasesOverall._sum.total || 0),
+        months: monthlyPurchases.map((m) => ({
+          month: m.month,
+          minDate: m.min_date,
+          maxDate: m.max_date,
+          daysCount: m.days_count,
+          invoicesCount: m.invoices_count,
+          totalAmount: m.total_amount,
+        })),
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal mengambil data periode upload" });
   }
 });
 

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, History, Trash2, Info, Loader2, Search, ShieldCheck } from "lucide-react";
-import { formatNumber, formatDateTime } from "../lib/format.js";
+import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, History, Trash2, Info, Loader2, Search, ShieldCheck, Calendar, CalendarDays, CheckCircle2 } from "lucide-react";
+import { formatNumber, formatDateTime, formatDate, formatRupiah } from "../lib/format.js";
 import { ImportPreviewModal, PreviewData } from "../components/ImportPreviewModal.js";
 
 export const ImportPage: React.FC = () => {
@@ -15,6 +15,28 @@ export const ImportPage: React.FC = () => {
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [pendingUpload, setPendingUpload] = useState<{ endpoint: string; file: File } | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [periodTab, setPeriodTab] = useState<"SALES" | "PURCHASES">("SALES");
+
+  // Fetch overview of periods already in database
+  const { data: uploadedPeriods, isLoading: isLoadingPeriods } = useQuery({
+    queryKey: ["import-periods"],
+    queryFn: async () => {
+      const res = await fetch("/api/imports/periods");
+      if (!res.ok) throw new Error("Gagal mengambil periode data terupload");
+      return res.json();
+    },
+  });
+
+  const formatMonthLabel = (mStr: string) => {
+    if (!mStr) return "-";
+    const [year, month] = mStr.split("-");
+    const monthNames = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    ];
+    const idx = parseInt(month, 10) - 1;
+    return `${monthNames[idx] || month} ${year}`;
+  };
 
   // Fetch Import Batches History with auto-refresh when processing
   const { data: batches, isLoading } = useQuery({
@@ -88,6 +110,7 @@ export const ImportPage: React.FC = () => {
       setStatusMsg({ type: "success", text: msg });
 
       queryClient.invalidateQueries({ queryKey: ["imports"] });
+      queryClient.invalidateQueries({ queryKey: ["import-periods"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
@@ -116,6 +139,7 @@ export const ImportPage: React.FC = () => {
     onSuccess: () => {
       setStatusMsg({ type: "success", text: "Batch import berhasil dihapus!" });
       queryClient.invalidateQueries({ queryKey: ["imports"] });
+      queryClient.invalidateQueries({ queryKey: ["import-periods"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
@@ -162,6 +186,208 @@ export const ImportPage: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Peta Periode Data Ter-upload (Automatic Period & Date Detector) */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+              <CalendarDays className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                Peta Periode Data yang Sudah Ter-upload
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Pendeteksi Otomatis
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Cek periode bulan dan tanggal transaksi yang sudah aktif tersimpan di database sebelum upload file baru.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center bg-slate-200/80 p-1 rounded-xl self-start sm:self-auto">
+            <button
+              onClick={() => setPeriodTab("SALES")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                periodTab === "SALES"
+                  ? "bg-white text-emerald-700 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Penjualan POS
+            </button>
+            <button
+              onClick={() => setPeriodTab("PURCHASES")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                periodTab === "PURCHASES"
+                  ? "bg-white text-blue-700 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Faktur Pembelian
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5">
+          {isLoadingPeriods ? (
+            <div className="py-8 flex items-center justify-center gap-2 text-slate-400 text-xs">
+              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+              <span>Memeriksa database periode data...</span>
+            </div>
+          ) : periodTab === "SALES" ? (
+            <div className="space-y-4">
+              {/* Overall Summary Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Rentang Periode Keseluruhan</span>
+                  <span className="font-bold text-slate-800 text-sm mt-0.5 block">
+                    {uploadedPeriods?.sales?.minDate
+                      ? `${formatDate(uploadedPeriods.sales.minDate)} – ${formatDate(uploadedPeriods.sales.maxDate)}`
+                      : "Belum ada data penjualan"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Total Data Tersimpan</span>
+                  <span className="font-bold text-emerald-700 text-sm mt-0.5 block">
+                    {formatNumber(uploadedPeriods?.sales?.totalRows || 0)} baris transaksi
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Jumlah Bulan Aktif</span>
+                  <span className="font-bold text-slate-800 text-sm mt-0.5 block">
+                    {uploadedPeriods?.sales?.months?.length || 0} Periode Bulan
+                  </span>
+                </div>
+              </div>
+
+              {/* Month Cards */}
+              {uploadedPeriods?.sales?.months && uploadedPeriods.sales.months.length > 0 ? (
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 block mb-2">
+                    Rincian Bulan & Jumlah Hari Aktif yang Sudah Di-upload:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {uploadedPeriods.sales.months.map((m: any) => (
+                      <div
+                        key={m.month}
+                        className="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-emerald-300 transition-all shadow-xs"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-slate-800 text-xs">
+                            {formatMonthLabel(m.month)}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            {m.daysCount} Hari Aktif
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 space-y-0.5">
+                          <p>
+                            Rentang:{" "}
+                            <span className="font-medium text-slate-700">
+                              {formatDate(m.minDate)} – {formatDate(m.maxDate)}
+                            </span>
+                          </p>
+                          <p>
+                            Volume:{" "}
+                            <span className="font-semibold text-slate-800">
+                              {formatNumber(m.rowCount)} baris
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 text-center text-slate-400 text-xs">
+                  Belum ada data penjualan yang di-upload ke database.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Overall Summary Bar Purchases */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Rentang Periode Faktur</span>
+                  <span className="font-bold text-slate-800 text-sm mt-0.5 block">
+                    {uploadedPeriods?.purchases?.minDate
+                      ? `${formatDate(uploadedPeriods.purchases.minDate)} – ${formatDate(uploadedPeriods.purchases.maxDate)}`
+                      : "Belum ada faktur pembelian"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Total Faktur & Nominal</span>
+                  <span className="font-bold text-blue-700 text-sm mt-0.5 block">
+                    {formatNumber(uploadedPeriods?.purchases?.totalInvoices || 0)} faktur ({formatRupiah(uploadedPeriods?.purchases?.totalAmount || 0)})
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Jumlah Bulan Pembelian</span>
+                  <span className="font-bold text-slate-800 text-sm mt-0.5 block">
+                    {uploadedPeriods?.purchases?.months?.length || 0} Periode Bulan
+                  </span>
+                </div>
+              </div>
+
+              {/* Month Cards Purchases */}
+              {uploadedPeriods?.purchases?.months && uploadedPeriods.purchases.months.length > 0 ? (
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 block mb-2">
+                    Rincian Bulan & Jumlah Faktur Pembelian:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {uploadedPeriods.purchases.months.map((m: any) => (
+                      <div
+                        key={m.month}
+                        className="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-blue-300 transition-all shadow-xs"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-slate-800 text-xs">
+                            {formatMonthLabel(m.month)}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            {m.daysCount} Hari
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 space-y-0.5">
+                          <p>
+                            Rentang:{" "}
+                            <span className="font-medium text-slate-700">
+                              {formatDate(m.minDate)} – {formatDate(m.maxDate)}
+                            </span>
+                          </p>
+                          <p>
+                            Faktur:{" "}
+                            <span className="font-semibold text-slate-800">
+                              {formatNumber(m.invoicesCount)} faktur
+                            </span>
+                          </p>
+                          <p>
+                            Total:{" "}
+                            <span className="font-semibold text-blue-700">
+                              {formatRupiah(m.totalAmount)}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 text-center text-slate-400 text-xs">
+                  Belum ada faktur pembelian yang di-upload ke database.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* 3 Upload Panels */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -296,6 +522,7 @@ export const ImportPage: React.FC = () => {
                 <th className="py-2.5 px-4 font-bold">Waktu Upload</th>
                 <th className="py-2.5 px-4 font-bold">Nama File</th>
                 <th className="py-2.5 px-4 font-bold">Jenis Data</th>
+                <th className="py-2.5 px-4 font-bold">Periode Data</th>
                 <th className="py-2.5 px-4 text-right font-bold">Total Baris</th>
                 <th className="py-2.5 px-4 text-right font-bold">Data Masuk</th>
                 <th className="py-2.5 px-4 text-center font-bold">Status</th>
@@ -311,6 +538,15 @@ export const ImportPage: React.FC = () => {
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
                       {b.type}
                     </span>
+                  </td>
+                  <td className="py-2.5 px-4 whitespace-nowrap">
+                    {b.periodStart ? (
+                      <span className="font-mono text-[11px] bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-slate-700">
+                        {formatDate(b.periodStart)} – {formatDate(b.periodEnd)}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
                   </td>
                   <td className="py-2.5 px-4 text-right text-slate-600">{formatNumber(b.rowCount)}</td>
                   <td className="py-2.5 px-4 text-right font-semibold text-emerald-600">{formatNumber(b.insertedCount)}</td>
@@ -345,7 +581,7 @@ export const ImportPage: React.FC = () => {
               ))}
               {(!batches || batches.length === 0) && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 text-xs">
+                  <td colSpan={8} className="py-8 text-center text-slate-400 text-xs">
                     Belum ada riwayat batch import file.
                   </td>
                 </tr>
