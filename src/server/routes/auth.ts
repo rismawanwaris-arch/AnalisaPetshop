@@ -90,10 +90,16 @@ router.post("/login", async (req: Request, res: Response) => {
       },
     });
 
+    const isHttps = req.secure || req.headers["x-forwarded-proto"] === "https";
+    const cookieSecure =
+      process.env.COOKIE_SECURE === "true" ||
+      (process.env.COOKIE_SECURE !== "false" && isHttps);
+
     res.cookie("auth_token", rawToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: cookieSecure,
       sameSite: "lax",
+      path: "/",
       expires: expiresAt,
     });
 
@@ -108,6 +114,7 @@ router.post("/login", async (req: Request, res: Response) => {
     });
 
     res.json({
+      token: rawToken,
       user: {
         id: user.id,
         username: user.username,
@@ -131,12 +138,21 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
 // POST /api/auth/logout
 router.post("/logout", async (req: Request, res: Response) => {
   try {
-    const token = req.cookies?.auth_token;
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.substring(7).trim()
+      : undefined;
+
+    const token =
+      req.cookies?.auth_token ||
+      (req.headers["x-auth-token"] as string) ||
+      bearerToken;
+
     if (token) {
-      const tokenHash = hashString(token);
+      const tokenHash = hashString(token.trim());
       await prisma.session.deleteMany({ where: { tokenHash } });
     }
-    res.clearCookie("auth_token");
+    res.clearCookie("auth_token", { path: "/" });
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Gagal logout" });

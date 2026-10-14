@@ -20,12 +20,21 @@ declare global {
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
-    const token = req.cookies?.auth_token;
-    if (!token) {
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.substring(7).trim()
+      : undefined;
+
+    const token =
+      req.cookies?.auth_token ||
+      (req.headers["x-auth-token"] as string) ||
+      bearerToken;
+
+    if (!token || typeof token !== "string" || !token.trim()) {
       return res.status(401).json({ error: "Sesi tidak ditemukan. Silakan login kembali." });
     }
 
-    const tokenHash = hashString(token);
+    const tokenHash = hashString(token.trim());
     const session = await prisma.session.findUnique({
       where: { tokenHash },
       include: {

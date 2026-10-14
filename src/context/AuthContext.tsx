@@ -31,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const data = await res.json();
         setUser(data.user);
       } else {
+        localStorage.removeItem("auth_token");
         setUser(null);
       }
     } catch {
@@ -55,6 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) {
         return { success: false, error: data.error || "Username atau password salah" };
       }
+      if (data.token) {
+        localStorage.setItem("auth_token", data.token);
+      }
       setUser(data.user);
       return { success: true };
     } catch (err: any) {
@@ -68,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // ignore
     } finally {
+      localStorage.removeItem("auth_token");
       setUser(null);
       window.location.href = "/login";
     }
