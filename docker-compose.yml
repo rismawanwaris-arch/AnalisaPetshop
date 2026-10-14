@@ -1,0 +1,29 @@
+services:
+  web:
+    build: .
+    container_name: analisa-petshop
+    restart: always
+    ports:
+      - "8090:8090"
+    environment:
+      - PORT=8090
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/analisa_petshop?schema=public
+      - SESSION_SECRET=petshop-super-secret-key-32chars-min-security
+      - MASTER_PASSWORD=admin
+      - ADMIN_PASSWORD=admin
+      - NODE_ENV=production
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    container_name: analisa-petshop-db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=analisa_petshop
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"

@@ -1,0 +1,90 @@
+import { prisma } from "./prisma.js";
+import { hashPassword } from "./password.js";
+
+export async function ensureDefaults(branch: "BANDUNG" | "CIMAHI" = "BANDUNG") {
+  // 1. PointSettings singleton
+  await prisma.pointSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      id: 1,
+      periodStartDay: 1,
+      pointTargetMonthly: 100,
+      pointTargetWeekly: 25,
+      pointTargetDaily: 5,
+      pointRupiahRate: 100,
+      hiddenMenuItems: [],
+    },
+  });
+
+  // 2. Default Targets (Petshop, Aksesoris, SP_VOUCHER)
+  const defaultTargets = [
+    { scope: "PERKONTER" as const, category: "PETSHOP" as const, amount: 35000 },
+    { scope: "PERKONTER" as const, category: "AKSESORIS" as const, amount: 35000 },
+    { scope: "PERKONTER" as const, category: "SP_VOUCHER" as const, amount: 100000 },
+    { scope: "ALL" as const, category: "PETSHOP" as const, amount: 1190000 },
+    { scope: "ALL" as const, category: "AKSESORIS" as const, amount: 1400000 },
+    { scope: "ALL" as const, category: "SP_VOUCHER" as const, amount: 4000000 },
+  ];
+
+  for (const t of defaultTargets) {
+    await prisma.target.upsert({
+      where: {
+        scope_category_branch: {
+          scope: t.scope,
+          category: t.category,
+          branch,
+        },
+      },
+      update: {},
+      create: {
+        scope: t.scope,
+        category: t.category,
+        branch,
+        amount: t.amount,
+      },
+    });
+  }
+
+  // 3. Item Group Mappings
+  const mappings = [
+    { itemGroup: "CAT ADULT DRY", category: "PETSHOP" as const },
+    { itemGroup: "CAT KITTEN DRY", category: "PETSHOP" as const },
+    { itemGroup: "MAKANAN BASAH", category: "PETSHOP" as const },
+    { itemGroup: "DOG ADULT DRY", category: "PETSHOP" as const },
+    { itemGroup: "MAKANAN DOG", category: "PETSHOP" as const },
+    { itemGroup: "MOTHER AND KITTEN", category: "PETSHOP" as const },
+    { itemGroup: "PASIR", category: "PETSHOP" as const },
+    { itemGroup: "OBAT", category: "PETSHOP" as const },
+    { itemGroup: "SNACK KUCING", category: "PETSHOP" as const },
+    { itemGroup: "AKSESORIS", category: "AKSESORIS" as const },
+    { itemGroup: "SP/VOUCHER", category: "SP_VOUCHER" as const },
+  ];
+
+  for (const m of mappings) {
+    await prisma.itemGroupMapping.upsert({
+      where: { itemGroup: m.itemGroup },
+      update: {},
+      create: { itemGroup: m.itemGroup, category: m.category, isDefault: true },
+    });
+    await prisma.pointGroupMapping.upsert({
+      where: { itemGroup: m.itemGroup },
+      update: {},
+      create: { itemGroup: m.itemGroup, category: m.category, isDefault: true },
+    });
+  }
+
+  // 4. Default Admin User if not exists
+  const existingMaster = await prisma.user.findFirst({ where: { role: "master" } });
+  if (!existingMaster) {
+    await prisma.user.create({
+      data: {
+        username: "admin",
+        displayName: "Master Admin",
+        passwordHash: hashPassword(process.env.MASTER_PASSWORD || "admin"),
+        role: "master",
+        isActive: true,
+      },
+    });
+  }
+}

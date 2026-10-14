@@ -1,0 +1,345 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ImportStatus {
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum Branch {
+  BANDUNG
+  CIMAHI
+}
+
+enum TargetScope {
+  PERKONTER
+  ALL
+}
+
+enum ReportCategory {
+  PETSHOP
+  AKSESORIS
+  SP_VOUCHER
+}
+
+model ImportBatch {
+  id             Int          @id @default(autoincrement())
+  filename       String
+  uploadedAt     DateTime     @default(now())
+  status         ImportStatus @default(PROCESSING)
+  rowCount       Int          @default(0)
+  insertedCount  Int          @default(0)
+  duplicateCount Int          @default(0)
+  errorRowCount  Int          @default(0)
+  errorMessage   String?
+  periodStart    DateTime?    @db.Date
+  periodEnd      DateTime?    @db.Date
+  branch         Branch       @default(BANDUNG)
+  isRetur        Boolean      @default(false)
+  type           String       @default("SALES") // SALES, PURCHASES, MASTER_ITEMS
+  sales          Sale[]
+  purchases      PurchaseInvoice[]
+
+  @@map("import_batches")
+}
+
+model Outlet {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isHidden  Boolean  @default(false)
+  branch    Branch   @default(BANDUNG)
+  sales     Sale[]
+  purchases PurchaseInvoice[]
+
+  @@map("outlets")
+}
+
+model Target {
+  id        Int            @id @default(autoincrement())
+  scope     TargetScope
+  category  ReportCategory
+  branch    Branch         @default(BANDUNG)
+  amount    Decimal        @db.Decimal(14, 2)
+  updatedAt DateTime       @updatedAt
+
+  @@unique([scope, category, branch])
+  @@map("targets")
+}
+
+model ItemGroupMapping {
+  id        Int      @id @default(autoincrement())
+  itemGroup String   @unique
+  category  String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("item_group_mappings")
+}
+
+model PointGroupMapping {
+  id        Int      @id @default(autoincrement())
+  itemGroup String   @unique
+  category  String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("point_group_mappings")
+}
+
+model Item {
+  id                Int      @id @default(autoincrement())
+  code              String
+  name              String
+  barcode           String?
+  itemGroup         String?
+  brand             String?
+  unitBase          String?  @default("PCS")
+  unitPurchase      String?  @default("PCS")
+  lastPurchasePrice Decimal? @db.Decimal(14, 4)
+  avgHpp            Decimal? @db.Decimal(14, 4)
+  priceRetail       Decimal? @db.Decimal(14, 4)
+  priceAgent        Decimal? @db.Decimal(14, 4)
+  priceOnline       Decimal? @db.Decimal(14, 4)
+  priceRepack       Decimal? @db.Decimal(14, 4)
+  priceBranch       Decimal? @db.Decimal(14, 4)
+  marginRetail      Decimal? @db.Decimal(14, 4)
+  status            String?  @default("Aktif")
+  branch            Branch   @default(BANDUNG)
+  isHidden          Boolean  @default(false)
+  isFromSalesImport Boolean  @default(false)
+  sales             Sale[]
+  purchaseItems     PurchaseItem[]
+
+  @@unique([code, branch])
+  @@index([name])
+  @@index([code])
+  @@map("items")
+}
+
+model ItemPoint {
+  id        Int      @id @default(autoincrement())
+  pattern   String
+  points    Int
+  startDate DateTime @default(now()) @db.Date
+  isDefault Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@unique([pattern, startDate])
+  @@index([pattern])
+  @@index([startDate])
+  @@map("item_points")
+}
+
+model ItemPointExclusion {
+  id        Int      @id @default(autoincrement())
+  pattern   String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("item_point_exclusions")
+}
+
+model ItemGroupPointDefault {
+  id        Int      @id @default(autoincrement())
+  itemGroup String   @unique
+  points    Int
+  updatedAt DateTime @updatedAt
+
+  @@map("item_group_point_defaults")
+}
+
+model PointSettings {
+  id                    Int      @id @default(1)
+  periodStartDay        Int      @default(1)
+  pointTargetMonthly    Int      @default(0)
+  pointTargetWeekly     Int      @default(0)
+  pointTargetDaily      Int      @default(0)
+  pointRupiahRate       Int      @default(100)
+  hiddenMenuItems       String[] @default([])
+  dashboardChartMetrics String[] @default(["laba"])
+
+  @@map("point_settings")
+}
+
+model Employee {
+  id       Int              @id @default(autoincrement())
+  name     String           @unique
+  isHidden Boolean          @default(false)
+  sales    Sale[]
+  excluded PointsExclusion?
+
+  @@map("employees")
+}
+
+model PointsExclusion {
+  id         Int      @id @default(autoincrement())
+  employeeId Int      @unique
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@map("points_exclusions")
+}
+
+model Sale {
+  id            Int      @id @default(autoincrement())
+  noTransaksi   String
+  tanggal       DateTime @db.Date
+  jamBuat       String
+  customer      String
+  qty           Decimal  @db.Decimal(14, 2)
+  unit          String
+  hargaJual     Decimal  @db.Decimal(14, 4)
+  diskon        Decimal  @db.Decimal(14, 4)
+  subtotal      Decimal  @db.Decimal(14, 4)
+  hpp           Decimal  @db.Decimal(14, 4)
+  labaRugi      Decimal  @db.Decimal(14, 4)
+  rowHash       String   @unique
+  isRetur       Boolean  @default(false)
+  returOfSaleId Int?
+  returOf       Sale?    @relation("SaleReturns", fields: [returOfSaleId], references: [id])
+  returns       Sale[]   @relation("SaleReturns")
+  outletId      Int
+  outlet        Outlet      @relation(fields: [outletId], references: [id])
+  itemId        Int
+  item          Item        @relation(fields: [itemId], references: [id])
+  employeeId    Int
+  employee      Employee    @relation(fields: [employeeId], references: [id])
+  importId      Int
+  import        ImportBatch @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, tanggal])
+  @@index([outletId, tanggal])
+  @@index([tanggal])
+  @@index([employeeId, tanggal])
+  @@index([noTransaksi])
+  @@map("sales")
+}
+
+// ======================== MODUL PEMBELIAN ========================
+
+model Vendor {
+  id        Int               @id @default(autoincrement())
+  name      String            @unique
+  phone     String?
+  address   String?
+  createdAt DateTime          @default(now())
+  invoices  PurchaseInvoice[]
+
+  @@map("vendors")
+}
+
+model PurchaseInvoice {
+  id          Int            @id @default(autoincrement())
+  noFaktur    String         @unique
+  fakturRef   String?
+  tanggal     DateTime       @db.Date
+  vendorId    Int
+  vendor      Vendor         @relation(fields: [vendorId], references: [id])
+  outletId    Int
+  outlet      Outlet         @relation(fields: [outletId], references: [id])
+  mataUang    String         @default("Rupiah")
+  subtotal    Decimal        @db.Decimal(14, 2)
+  pajak       Decimal        @default(0) @db.Decimal(14, 2)
+  diskon      Decimal        @default(0) @db.Decimal(14, 2)
+  lainLain    Decimal        @default(0) @db.Decimal(14, 2)
+  total       Decimal        @db.Decimal(14, 2)
+  importId    Int?
+  import      ImportBatch?   @relation(fields: [importId], references: [id], onDelete: SetNull)
+  items       PurchaseItem[]
+  createdAt   DateTime       @default(now())
+
+  @@index([tanggal])
+  @@index([vendorId])
+  @@index([outletId])
+  @@map("purchase_invoices")
+}
+
+model PurchaseItem {
+  id           Int             @id @default(autoincrement())
+  invoiceId    Int
+  invoice      PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  noDetail     Int?
+  itemCode     String
+  itemName     String
+  itemId       Int?
+  item         Item?           @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  qty          Decimal         @db.Decimal(14, 2)
+  satuan       String          @default("PCS")
+  disc         String?
+  tax          String?
+  harga        Decimal         @db.Decimal(14, 2)
+  subtotalItem Decimal         @db.Decimal(14, 2)
+  rowHash      String?         @unique
+
+  @@index([itemCode])
+  @@index([invoiceId])
+  @@map("purchase_items")
+}
+
+// ======================== SISTEM & AUTH ========================
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  role      String
+  action    String
+  detail    String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model User {
+  id           Int         @id @default(autoincrement())
+  username     String      @unique
+  displayName  String?
+  passwordHash String
+  role         String      @default("admin")
+  roleId       Int?
+  customRole   CustomRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  lastLoginAt  DateTime?
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model CustomRole {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  permissions String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@map("custom_roles")
+}
+
+model Session {
+  id         Int       @id @default(autoincrement())
+  tokenHash  String    @unique
+  userId     Int?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username   String
+  role       String
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
