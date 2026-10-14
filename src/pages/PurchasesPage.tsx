@@ -26,7 +26,7 @@ import {
 import { formatRupiah, formatNumber, formatDate, daysAgo } from "../lib/format.js";
 import { useDateRange } from "../context/DateRangeContext.js";
 
-export const PurchasesPage: React.FC = () => {
+const PurchasesPageContent: React.FC = () => {
   const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
@@ -57,24 +57,33 @@ export const PurchasesPage: React.FC = () => {
   };
 
   // 1. Fetch Outlets for Dropdown
-  const { data: outlets } = useQuery({
+  const { data: rawOutlets } = useQuery({
     queryKey: ["outlets"],
     queryFn: async () => {
       const res = await fetch("/api/outlets");
       if (!res.ok) return [];
-      return res.json();
+      const json = await res.json();
+      return Array.isArray(json) ? json : (json?.outlets || []);
     },
   });
 
+  const outletList: any[] = Array.isArray(rawOutlets)
+    ? rawOutlets
+    : Array.isArray((rawOutlets as any)?.outlets)
+    ? (rawOutlets as any).outlets
+    : [];
+
   // 2. Fetch Vendors summary
-  const { data: vendors, isLoading: loadingVendors } = useQuery({
+  const { data: rawVendors, isLoading: loadingVendors } = useQuery({
     queryKey: ["purchases", "vendors"],
     queryFn: async () => {
       const res = await fetch("/api/purchases/vendors");
       if (!res.ok) throw new Error("Gagal mengambil data vendor");
-      return res.json();
+      const json = await res.json();
+      return Array.isArray(json) ? json : [];
     },
   });
+  const vendorList: any[] = Array.isArray(rawVendors) ? rawVendors : [];
 
   // 3. Fetch KPI Summary Metrics (Total Belanja, Total Nota, Suplier Aktif, Total Qty, Varian)
   const { data: summary, isLoading: loadingSummary } = useQuery({
@@ -94,7 +103,7 @@ export const PurchasesPage: React.FC = () => {
   });
 
   // 4. Fetch Top Items (Item Terbanyak Dibeli)
-  const { data: topItems, isLoading: loadingTopItems } = useQuery({
+  const { data: rawTopItems, isLoading: loadingTopItems } = useQuery({
     queryKey: ["purchases", "top-items", selectedVendorId, selectedOutletId, fromDate, toDate, searchQuery, sortBy],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -108,12 +117,14 @@ export const PurchasesPage: React.FC = () => {
 
       const res = await fetch(`/api/purchases/top-items?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data item terbanyak dibeli");
-      return res.json();
+      const json = await res.json();
+      return Array.isArray(json) ? json : [];
     },
   });
+  const topItemList: any[] = Array.isArray(rawTopItems) ? rawTopItems : [];
 
   // 5. Fetch Invoices for selected filters
-  const { data: invoices, isLoading: loadingInvoices } = useQuery({
+  const { data: rawInvoices, isLoading: loadingInvoices } = useQuery({
     queryKey: ["purchases", "invoices", selectedVendorId, selectedOutletId, fromDate, toDate, searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -125,9 +136,11 @@ export const PurchasesPage: React.FC = () => {
 
       const res = await fetch(`/api/purchases/invoices?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data faktur");
-      return res.json();
+      const json = await res.json();
+      return Array.isArray(json) ? json : [];
     },
   });
+  const invoiceList: any[] = Array.isArray(rawInvoices) ? rawInvoices : [];
 
   // 6. Fetch Invoice detail if modal opened
   const { data: invoiceDetail, isLoading: loadingDetail } = useQuery({
@@ -141,13 +154,15 @@ export const PurchasesPage: React.FC = () => {
     enabled: !!selectedInvoiceId,
   });
 
-  const filteredVendors = vendors?.filter((v: any) =>
-    v.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredVendors = vendorList.filter((v: any) =>
+    (v?.name || "").toLowerCase().includes((searchQuery || "").toLowerCase())
   );
 
   // Compute footer totals for Top Items
-  const totalTopQty = topItems?.reduce((acc: number, it: any) => acc + (Number(it.totalQty) || 0), 0) || 0;
-  const totalTopSpend = topItems?.reduce((acc: number, it: any) => acc + (Number(it.totalSpend) || 0), 0) || 0;
+  const totalTopQty = topItemList.reduce((acc: number, it: any) => acc + (Number(it?.totalQty) || 0), 0);
+  const totalTopSpend = topItemList.reduce((acc: number, it: any) => acc + (Number(it?.totalSpend) || 0), 0);
+
+  const invoiceDetailItems = Array.isArray(invoiceDetail?.items) ? invoiceDetail.items : [];
 
   return (
     <div className="space-y-5">
@@ -254,8 +269,8 @@ export const PurchasesPage: React.FC = () => {
               onChange={(e) => setSelectedVendorId(e.target.value ? Number(e.target.value) : null)}
               className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
             >
-              <option value="">Semua Suplier ({vendors?.length || 0})</option>
-              {vendors?.map((v: any) => (
+              <option value="">Semua Suplier ({vendorList.length})</option>
+              {vendorList.map((v: any) => (
                 <option key={v.id} value={v.id}>
                   {v.name} ({v.invoiceCount} nota)
                 </option>
@@ -273,8 +288,8 @@ export const PurchasesPage: React.FC = () => {
               onChange={(e) => setSelectedOutletId(e.target.value ? Number(e.target.value) : null)}
               className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
             >
-              <option value="">Semua Lokasi ({outlets?.length || 0})</option>
-              {outlets?.map((o: any) => (
+              <option value="">Semua Lokasi ({outletList.length})</option>
+              {outletList.map((o: any) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
                 </option>
@@ -377,7 +392,7 @@ export const PurchasesPage: React.FC = () => {
           }`}
         >
           <span>📑</span>
-          <span>Rekap per Suplier ({vendors?.length || 0})</span>
+          <span>Rekap per Suplier ({vendorList.length})</span>
         </button>
 
         <button
@@ -389,7 +404,7 @@ export const PurchasesPage: React.FC = () => {
           }`}
         >
           <span>🧾</span>
-          <span>Daftar Nota / Faktur ({invoices?.length || 0})</span>
+          <span>Daftar Nota / Faktur ({invoiceList.length})</span>
         </button>
 
         <button
@@ -401,7 +416,7 @@ export const PurchasesPage: React.FC = () => {
           }`}
         >
           <span>📦</span>
-          <span>Item Terbanyak Dibeli ({topItems?.length || 0})</span>
+          <span>Item Terbanyak Dibeli ({topItemList.length})</span>
         </button>
       </div>
 
@@ -412,7 +427,7 @@ export const PurchasesPage: React.FC = () => {
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Peringkat Barang Pembelian Teratas ({topItems?.length || 0} Barang)
+              Peringkat Barang Pembelian Teratas ({topItemList.length} Barang)
             </span>
             <div className="flex items-center gap-2 self-start sm:self-auto">
               <span className="text-xs text-slate-400 font-medium">Urutkan:</span>
@@ -447,14 +462,14 @@ export const PurchasesPage: React.FC = () => {
                         Memuat peringkat item terbanyak dibeli...
                       </td>
                     </tr>
-                  ) : topItems?.length === 0 ? (
+                  ) : topItemList.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
                         Tidak ada data pembelian yang cocok dengan filter yang dipilih.
                       </td>
                     </tr>
                   ) : (
-                    topItems?.map((it: any) => (
+                    topItemList.map((it: any) => (
                       <tr
                         key={it.itemCode}
                         className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors"
@@ -515,7 +530,7 @@ export const PurchasesPage: React.FC = () => {
                 </tbody>
 
                 {/* Footer Total Row */}
-                {topItems && topItems.length > 0 && (
+                {topItemList.length > 0 && (
                   <tfoot className="bg-slate-50/90 dark:bg-slate-950/80 border-t-2 border-slate-200 dark:border-slate-800 text-xs font-bold">
                     <tr>
                       <td colSpan={4} className="py-3 px-4 text-slate-700 dark:text-slate-300 uppercase tracking-wider text-right">
@@ -544,7 +559,7 @@ export const PurchasesPage: React.FC = () => {
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Daftar Nota Masuk ({invoices?.length || 0} Faktur)
+              Daftar Nota Masuk ({invoiceList.length} Faktur)
             </span>
           </div>
 
@@ -569,14 +584,14 @@ export const PurchasesPage: React.FC = () => {
                         Memuat nota pembelian...
                       </td>
                     </tr>
-                  ) : invoices?.length === 0 ? (
+                  ) : invoiceList.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
                         Tidak ada nota pembelian ditemukan.
                       </td>
                     </tr>
                   ) : (
-                    invoices?.map((inv: any) => (
+                    invoiceList.map((inv: any) => (
                       <tr key={inv.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
                           {inv.noFaktur}
@@ -592,7 +607,7 @@ export const PurchasesPage: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 text-center">
                           <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                            {inv.items?.length || 0} SKU
+                            {(Array.isArray(inv.items) ? inv.items : []).length} SKU
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
@@ -622,7 +637,7 @@ export const PurchasesPage: React.FC = () => {
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Daftar Supplier Rekanan ({filteredVendors?.length || 0} Rekanan)
+              Daftar Supplier Rekanan ({filteredVendors.length} Rekanan)
             </span>
             {selectedVendorId && (
               <button
@@ -640,7 +655,7 @@ export const PurchasesPage: React.FC = () => {
                 Memuat data supplier...
               </div>
             ) : (
-              filteredVendors?.map((v: any) => {
+              filteredVendors.map((v: any) => {
                 const isSelected = selectedVendorId === v.id;
                 return (
                   <div
@@ -758,7 +773,7 @@ export const PurchasesPage: React.FC = () => {
                 {/* Items Table */}
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3">
-                    Barang yang Dipesan ({invoiceDetail?.items?.length || 0} Macam Produk)
+                    Barang yang Dipesan ({invoiceDetailItems.length} Macam Produk)
                   </h4>
                   <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
                     <table className="w-full text-left text-xs">
@@ -771,7 +786,7 @@ export const PurchasesPage: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {invoiceDetail?.items?.map((it: any) => (
+                        {invoiceDetailItems.map((it: any) => (
                           <tr key={it.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                             <td className="py-2.5 px-3">
                               <span className="font-bold text-slate-800 dark:text-slate-200 block">{it.itemName}</span>
@@ -808,5 +823,54 @@ export const PurchasesPage: React.FC = () => {
         </div>
       )}
     </div>
+  );
+};
+
+class PurchasesErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: any }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("PurchasesPage Error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 max-w-xl mx-auto my-12 bg-white dark:bg-slate-900 rounded-2xl border border-rose-200 dark:border-rose-900/50 shadow-lg text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-black text-slate-900 dark:text-white">Kendala Tampilan Pembelian</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {this.state.error?.message || "Terjadi kesalahan saat memuat tampilan data pembelian."}
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition cursor-pointer"
+          >
+            Muat Ulang Halaman
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export const PurchasesPage: React.FC = () => {
+  return (
+    <PurchasesErrorBoundary>
+      <PurchasesPageContent />
+    </PurchasesErrorBoundary>
   );
 };
