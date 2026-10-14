@@ -13,6 +13,7 @@ export interface ParsedPurchaseItem {
   harga: number;
   subtotalItem: number;
   rowHash: string;
+  legacyHash?: string;
 }
 
 export interface ParsedPurchaseInvoice {
@@ -35,6 +36,7 @@ export function parsePurchaseExcel(buffer: Buffer): { invoices: ParsedPurchaseIn
   const rawRows = extractRowsWithHeaders(wb, ["no faktur", "vendor", "kode item", "nama item"]);
 
   const invoiceMap = new Map<string, ParsedPurchaseInvoice>();
+  const invoiceItemCounter = new Map<string, number>();
   const errors: string[] = [];
 
   rawRows.forEach((r, idx) => {
@@ -66,7 +68,13 @@ export function parsePurchaseExcel(buffer: Buffer): { invoices: ParsedPurchaseIn
     const total = parseCleanNumber(getField(r, "Total", "Grand Total"), subtotal + pajak - diskon + lainLain);
     const fakturRef = String(getField(r, "Faktur Ref", "No Ref", "Ref") || "").trim() || undefined;
 
-    const noDetail = parseCleanNumber(getField(r, "No Detail", "No. Detail", "No"), idx + 1);
+    const invItemKey = `${noFaktur}_${itemCode}`;
+    const itemSeq = (invoiceItemCounter.get(invItemKey) || 0) + 1;
+    invoiceItemCounter.set(invItemKey, itemSeq);
+
+    const explicitDetail = getField(r, "No Detail", "No. Detail", "No");
+    const noDetail = explicitDetail !== undefined ? parseCleanNumber(explicitDetail, itemSeq) : itemSeq;
+
     const qty = parseCleanNumber(getField(r, "Qty", "qty", "Jumlah", "Kuantitas"), 1);
     const satuan = String(getField(r, "Satuan", "unit", "Satuan Dasar") || "PCS").trim();
     const disc = String(getField(r, "Disc", "Diskon Item") || "").trim() || undefined;
@@ -74,7 +82,10 @@ export function parsePurchaseExcel(buffer: Buffer): { invoices: ParsedPurchaseIn
     const harga = parseCleanNumber(getField(r, "Harga", "Harga Beli", "Price"), 0);
     const subtotalItem = parseCleanNumber(getField(r, "Subtotal Item", "Subtotal_Item", "Total Item"), qty * harga);
 
-    const rowHash = hashString(`${noFaktur}_${itemCode}_${noDetail}_${qty}_${harga}_${idx}`);
+    // 1. Deterministic rowHash
+    const rowHash = hashString(`${noFaktur}_${itemCode}_${noDetail}_${qty}_${harga}`);
+    // 2. Legacy rowHash for backward compatibility
+    const legacyHash = hashString(`${noFaktur}_${itemCode}_${parseCleanNumber(explicitDetail, idx + 1)}_${qty}_${harga}_${idx}`);
 
     if (!invoiceMap.has(noFaktur)) {
       invoiceMap.set(noFaktur, {
@@ -106,6 +117,7 @@ export function parsePurchaseExcel(buffer: Buffer): { invoices: ParsedPurchaseIn
         harga,
         subtotalItem,
         rowHash,
+        legacyHash,
       });
     }
   });

@@ -110,10 +110,13 @@ router.post("/sales", upload.single("file"), async (req: Request, res: Response)
       itemMap.set(it.code, newItem.id);
     }
 
-    // 5. Deduplicate against existing rowHashes in bulk
-    const allHashes = rows.map((r) => r.rowHash);
+    // 5. Deduplicate against existing rowHashes in bulk (both deterministic & legacy hashes)
+    const allDeterministicHashes = rows.map((r) => r.rowHash);
+    const allLegacyHashes = rows.map((r) => r.legacyHash).filter(Boolean) as string[];
+    const allLookupHashes = Array.from(new Set([...allDeterministicHashes, ...allLegacyHashes]));
+
     const existingSales = await prisma.sale.findMany({
-      where: { rowHash: { in: allHashes } },
+      where: { rowHash: { in: allLookupHashes } },
       select: { rowHash: true },
     });
     const existingHashSet = new Set(existingSales.map((s) => s.rowHash));
@@ -127,7 +130,7 @@ router.post("/sales", upload.single("file"), async (req: Request, res: Response)
     let duplicateCount = 0;
 
     for (const r of rows) {
-      if (existingHashSet.has(r.rowHash)) {
+      if (existingHashSet.has(r.rowHash) || (r.legacyHash && existingHashSet.has(r.legacyHash))) {
         duplicateCount++;
         continue;
       }
@@ -318,28 +321,46 @@ router.post("/purchases", upload.single("file"), async (req: Request, res: Respo
           where: { code: it.itemCode, branch: "BANDUNG" },
         });
 
-        await prisma.purchaseItem.upsert({
-          where: { rowHash: it.rowHash },
-          update: {
-            qty: it.qty,
-            harga: it.harga,
-            subtotalItem: it.subtotalItem,
-          },
-          create: {
-            invoiceId: invoiceRecordId,
-            noDetail: it.noDetail,
-            itemCode: it.itemCode,
-            itemName: it.itemName,
-            itemId: itemRecord?.id || null,
-            qty: it.qty,
-            satuan: it.satuan,
-            disc: it.disc,
-            tax: it.tax,
-            harga: it.harga,
-            subtotalItem: it.subtotalItem,
-            rowHash: it.rowHash,
+        const existingPurchaseItem = await prisma.purchaseItem.findFirst({
+          where: {
+            OR: [
+              { rowHash: it.rowHash },
+              ...(it.legacyHash ? [{ rowHash: it.legacyHash }] : []),
+            ],
           },
         });
+
+        if (existingPurchaseItem) {
+          await prisma.purchaseItem.update({
+            where: { id: existingPurchaseItem.id },
+            data: {
+              rowHash: it.rowHash,
+              invoiceId: invoiceRecordId,
+              noDetail: it.noDetail,
+              qty: it.qty,
+              harga: it.harga,
+              subtotalItem: it.subtotalItem,
+              itemId: itemRecord?.id || existingPurchaseItem.itemId,
+            },
+          });
+        } else {
+          await prisma.purchaseItem.create({
+            data: {
+              invoiceId: invoiceRecordId,
+              noDetail: it.noDetail,
+              itemCode: it.itemCode,
+              itemName: it.itemName,
+              itemId: itemRecord?.id || null,
+              qty: it.qty,
+              satuan: it.satuan,
+              disc: it.disc,
+              tax: it.tax,
+              harga: it.harga,
+              subtotalItem: it.subtotalItem,
+              rowHash: it.rowHash,
+            },
+          });
+        }
 
         if (itemRecord && it.harga > 0) {
           await prisma.item.update({

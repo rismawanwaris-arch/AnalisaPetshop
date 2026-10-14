@@ -42,11 +42,19 @@ export const ImportPage: React.FC = () => {
     onSuccess: (data) => {
       let msg = "File berhasil di-upload dan diproses!";
       if (data.endpoint === "sales") {
-        msg = `Sukses! Berhasil memproses ${data.rowCount} baris data (${data.insertedCount} baris baru masuk, ${data.duplicateCount} duplikat diabaikan).`;
+        if (data.insertedCount === 0 && data.duplicateCount > 0) {
+          msg = `ℹ️ File diproses: Seluruh ${data.duplicateCount} baris data sudah ada sebelumnya di sistem. Sistem otomatis mengabaikan data duplikat agar transaksi tidak ganda.`;
+        } else {
+          msg = `Sukses! Berhasil memproses ${data.rowCount} baris data (${data.insertedCount} baris baru masuk, ${data.duplicateCount} baris duplikat diabaikan).`;
+        }
       } else if (data.endpoint === "purchases") {
-        msg = `Sukses! Berhasil memproses ${data.invoicesCount} faktur pembelian (${data.insertedInvoices} faktur baru, ${data.updatedInvoices} diperbarui).`;
+        if (data.insertedInvoices === 0 && data.updatedInvoices > 0) {
+          msg = `ℹ️ File diproses: Seluruh ${data.updatedInvoices} faktur pembelian sudah ada di sistem dan telah disinkronkan tanpa menduplikasi data.`;
+        } else {
+          msg = `Sukses! Berhasil memproses ${data.invoicesCount} faktur pembelian (${data.insertedInvoices} faktur baru, ${data.updatedInvoices} diperbarui/disinkronkan).`;
+        }
       } else if (data.endpoint === "master-items") {
-        msg = `Sukses! Berhasil memperbarui ${data.count} data barang master ke dalam katalog.`;
+        msg = `Sukses! Berhasil memperbarui / memverifikasi ${data.count} data barang master ke dalam katalog.`;
       }
       setStatusMsg({ type: "success", text: msg });
 

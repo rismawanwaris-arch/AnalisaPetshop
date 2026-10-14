@@ -20,6 +20,7 @@ export interface ParsedSaleRow {
   labaRugi: number;
   pegawai: string;
   rowHash: string;
+  legacyHash?: string;
 }
 
 export function parseSalesExcel(buffer: Buffer): { rows: ParsedSaleRow[]; errors: string[] } {
@@ -28,6 +29,7 @@ export function parseSalesExcel(buffer: Buffer): { rows: ParsedSaleRow[]; errors
 
   const rows: ParsedSaleRow[] = [];
   const errors: string[] = [];
+  const txItemCounter = new Map<string, number>();
 
   rawRows.forEach((r, idx) => {
     const noTransaksi = String(getField(r, "No Transaksi", "No. Transaksi", "No_Transaksi", "NoTransaksi", "Transaksi") || "").trim();
@@ -63,9 +65,19 @@ export function parseSalesExcel(buffer: Buffer): { rows: ParsedSaleRow[]; errors
     const labaRugi = parseCleanNumber(getField(r, "Laba Rugi", "Laba", "Profit", "Margin"), subtotal - hpp);
     const pegawai = String(getField(r, "Pegawai", "Kasir", "Sales", "Karyawan", "Staff") || "Tidak Diketahui").trim();
 
-    // Unique rowHash to deduplicate records accurately
-    const hashData = `${noTransaksi}_${tanggal.toISOString().split("T")[0]}_${jamBuat}_${cabang}_${kodeItem}_${qty}_${subtotal}_${idx}`;
+    // Occurrence count of this item in this specific transaction
+    const txItemKey = `${noTransaksi}_${kodeItem}`;
+    const itemSeq = (txItemCounter.get(txItemKey) || 0) + 1;
+    txItemCounter.set(txItemKey, itemSeq);
+
+    const tglStr = !isNaN(tanggal.getTime()) ? tanggal.toISOString().split("T")[0] : "NODATE";
+
+    // 1. Deterministic rowHash: independent of Excel row position or order of rows
+    const hashData = `${noTransaksi}_${tglStr}_${jamBuat}_${cabang}_${kodeItem}_${itemSeq}_${qty}_${subtotal}`;
     const rowHash = hashString(hashData);
+
+    // 2. Legacy rowHash: preserves compatibility with historical imports that used global row index
+    const legacyHash = hashString(`${noTransaksi}_${tglStr}_${jamBuat}_${cabang}_${kodeItem}_${qty}_${subtotal}_${idx}`);
 
     rows.push({
       noTransaksi,
@@ -85,6 +97,7 @@ export function parseSalesExcel(buffer: Buffer): { rows: ParsedSaleRow[]; errors
       labaRugi,
       pegawai,
       rowHash,
+      legacyHash,
     });
   });
 
