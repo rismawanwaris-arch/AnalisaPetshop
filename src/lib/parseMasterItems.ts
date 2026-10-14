@@ -1,5 +1,5 @@
 import * as xlsx from "xlsx";
-import { hashString } from "./password.js";
+import { parseCleanNumber, parseCleanDate, getField, extractRowsWithHeaders } from "./excelUtils.js";
 
 export interface ParsedMasterItem {
   code: string;
@@ -21,47 +21,57 @@ export interface ParsedMasterItem {
 
 export function parseMasterItemsExcel(buffer: Buffer): ParsedMasterItem[] {
   const wb = xlsx.read(buffer, { type: "buffer" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+  const rawRows = extractRowsWithHeaders(wb, ["kode item", "nama item"]);
 
   const results: ParsedMasterItem[] = [];
 
-  for (const r of rows) {
-    const code = String(r["Kode Item"] || r["Kode"] || "").trim();
-    const name = String(r["Nama Item"] || r["Nama"] || "").trim();
+  for (const r of rawRows) {
+    const code = String(getField(r, "Kode Item", "Kode", "Kode_Item", "KodeItem", "SKU") || "").trim();
+    const name = String(getField(r, "Nama Item", "Nama", "Nama_Item", "NamaItem", "Item") || "").trim();
+
     if (!code || !name) continue;
+
+    const barcode = String(getField(r, "Barcode", "Bar Code", "UPC") || "").trim() || undefined;
+    const itemGroup = String(getField(r, "Kategori / Grup", "Item Group", "Kategori", "Grup", "Kategori/Grup") || "").trim() || undefined;
+    const unitBase = String(getField(r, "Satuan Dasar", "Satuan", "Unit") || "PCS").trim();
+    const unitPurchase = String(getField(r, "Satuan Beli", "Satuan_Beli") || unitBase).trim();
+
+    const lastPurchasePrice = parseCleanNumber(getField(r, "Harga Beli Terakhir", "Harga Beli", "Last Purchase"), 0);
+    const avgHpp = parseCleanNumber(getField(r, "HPP Rata-rata", "HPP", "Modal"), lastPurchasePrice);
+    const priceRetail = parseCleanNumber(getField(r, "Harga Retail (0)", "Konter Zona C (Cuan)", "Retail", "Harga Jual", "Harga Retail"), 0);
+    const priceAgent = parseCleanNumber(getField(r, "Harga Agen (1)", "Agen", "Harga Agen"), 0);
+    const priceOnline = parseCleanNumber(getField(r, "Harga Online (2)", "Konter Cabang", "Online"), 0);
+    const priceRepack = parseCleanNumber(getField(r, "Harga Repack (3)", "Konter Zona A (Portal)", "Repack"), 0);
+    const priceBranch = parseCleanNumber(getField(r, "Harga Outlet Cabang (5)", "Konter Zona B (Biasa)", "Cabang"), 0);
+
+    const marginRetail = parseCleanNumber(
+      getField(r, "Margin Retail", "Margin Zona C", "Margin"),
+      priceRetail > 0 && avgHpp > 0 ? priceRetail - avgHpp : 0
+    );
+
+    const status = String(getField(r, "Status", "Status Item") || "Aktif").trim();
 
     results.push({
       code,
-      barcode: String(r["Barcode"] || "").trim() || undefined,
+      barcode,
       name,
-      itemGroup: String(r["Kategori / Grup"] || r["Item Group"] || r["Kategori"] || "").trim() || undefined,
-      unitBase: String(r["Satuan Dasar"] || "PCS").trim(),
-      unitPurchase: String(r["Satuan Beli"] || "PCS").trim(),
-      lastPurchasePrice: parseFloat(r["Harga Beli Terakhir"]) || 0,
-      avgHpp: parseFloat(r["HPP Rata-rata"] || r["HPP"]) || 0,
-      priceRetail: parseFloat(r["Harga Retail (0)"] || r["Konter Zona C (Cuan)"]) || 0,
-      priceAgent: parseFloat(r["Harga Agen (1)"] || r["Agen"]) || 0,
-      priceOnline: parseFloat(r["Harga Online (2)"] || r["Konter Cabang"]) || 0,
-      priceRepack: parseFloat(r["Harga Repack (3)"] || r["Konter Zona A (Portal)"]) || 0,
-      priceBranch: parseFloat(r["Harga Outlet Cabang (5)"] || r["Konter Zona B (Biasa)"]) || 0,
-      marginRetail: parseFloat(r["Margin Retail"] || r["Margin Zona C"]) || 0,
-      status: String(r["Status"] || "Aktif").trim(),
+      itemGroup,
+      unitBase,
+      unitPurchase,
+      lastPurchasePrice,
+      avgHpp,
+      priceRetail,
+      priceAgent,
+      priceOnline,
+      priceRepack,
+      priceBranch,
+      marginRetail,
+      status,
     });
   }
 
   return results;
 }
 
-export function excelDateToDate(excelDate: number | string): Date {
-  if (typeof excelDate === "string") {
-    const parsed = new Date(excelDate);
-    if (!isNaN(parsed.getTime())) return parsed;
-    const num = parseFloat(excelDate);
-    if (!isNaN(num)) return excelDateToDate(num);
-    return new Date();
-  }
-  // Excel base date: 1899-12-30
-  const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
-  return date;
-}
+// Keep export for backwards compatibility
+export { parseCleanDate as excelDateToDate };

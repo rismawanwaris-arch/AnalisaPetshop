@@ -1,6 +1,6 @@
 import * as xlsx from "xlsx";
-import { excelDateToDate } from "./parseMasterItems.js";
 import { hashString } from "./password.js";
+import { parseCleanNumber, parseCleanDate, getField, extractRowsWithHeaders } from "./excelUtils.js";
 
 export interface ParsedPurchaseItem {
   noDetail?: number;
@@ -32,41 +32,47 @@ export interface ParsedPurchaseInvoice {
 
 export function parsePurchaseExcel(buffer: Buffer): { invoices: ParsedPurchaseInvoice[]; errors: string[] } {
   const wb = xlsx.read(buffer, { type: "buffer" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rawRows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+  const rawRows = extractRowsWithHeaders(wb, ["no faktur", "vendor", "kode item", "nama item"]);
 
   const invoiceMap = new Map<string, ParsedPurchaseInvoice>();
   const errors: string[] = [];
 
   rawRows.forEach((r, idx) => {
-    const noFaktur = String(r["No Faktur"] || r["No. Faktur"] || "").trim();
-    const vendor = String(r["Vendor"] || r["Supplier"] || "").trim();
-    const itemCode = String(r["Kode Item"] || r["Kode"] || "").trim();
-    const itemName = String(r["Nama Item"] || r["Nama"] || "").trim();
+    const noFaktur = String(getField(r, "No Faktur", "No. Faktur", "No_Faktur", "NoFaktur", "Faktur") || "").trim();
+    const vendor = String(getField(r, "Vendor", "Supplier", "Pemasok", "Nama Vendor") || "").trim();
+    const itemCode = String(getField(r, "Kode Item", "Kode", "Kode_Item", "KodeItem", "SKU") || "").trim();
+    const itemName = String(getField(r, "Nama Item", "Nama", "Nama_Item", "NamaItem", "Item") || "").trim();
 
-    if (!noFaktur || !vendor) {
-      if (itemCode) errors.push(`Baris ${idx + 2}: Kolom No Faktur atau Vendor kosong`);
+    // Skip empty filler rows
+    if (!noFaktur && !vendor && !itemCode && !itemName) {
       return;
     }
 
-    const rawTanggal = r["Tanggal"];
-    const tanggal = excelDateToDate(rawTanggal);
-    const cabang = String(r["Cabang"] || "GUDANG PADASUKA").trim();
-    const mataUang = String(r["Mata Uang"] || "Rupiah").trim();
-    const subtotal = parseFloat(r["Subtotal"] || 0);
-    const pajak = parseFloat(r["Pajak"] || 0);
-    const diskon = parseFloat(r["Diskon"] || 0);
-    const lainLain = parseFloat(r["Lain Lain"] || 0);
-    const total = parseFloat(r["Total"] || 0);
-    const fakturRef = String(r["Faktur Ref"] || "").trim() || undefined;
+    if (!noFaktur || !vendor) {
+      if (itemCode || itemName) {
+        errors.push(`Baris ${idx + 2}: Kolom No Faktur atau Vendor tidak terisi (${itemName || itemCode})`);
+      }
+      return;
+    }
 
-    const noDetail = parseInt(r["No Detail"]) || undefined;
-    const qty = parseFloat(r["Qty"] || 1);
-    const satuan = String(r["Satuan"] || "PCS").trim();
-    const disc = String(r["Disc"] || "").trim() || undefined;
-    const tax = String(r["Tax"] || "").trim() || undefined;
-    const harga = parseFloat(r["Harga"] || 0);
-    const subtotalItem = parseFloat(r["Subtotal Item"] || qty * harga);
+    const rawTanggal = getField(r, "Tanggal", "Tgl", "Date", "Tgl Faktur");
+    const tanggal = parseCleanDate(rawTanggal);
+    const cabang = String(getField(r, "Cabang", "Gudang", "Outlet", "Branch") || "CABANG PADASUKA").trim();
+    const mataUang = String(getField(r, "Mata Uang", "Currency") || "Rupiah").trim();
+    const subtotal = parseCleanNumber(getField(r, "Subtotal", "Sub Total"), 0);
+    const pajak = parseCleanNumber(getField(r, "Pajak", "PPN", "Tax"), 0);
+    const diskon = parseCleanNumber(getField(r, "Diskon", "Disc"), 0);
+    const lainLain = parseCleanNumber(getField(r, "Lain Lain", "Biaya Lain", "Ongkir"), 0);
+    const total = parseCleanNumber(getField(r, "Total", "Grand Total"), subtotal + pajak - diskon + lainLain);
+    const fakturRef = String(getField(r, "Faktur Ref", "No Ref", "Ref") || "").trim() || undefined;
+
+    const noDetail = parseCleanNumber(getField(r, "No Detail", "No. Detail", "No"), idx + 1);
+    const qty = parseCleanNumber(getField(r, "Qty", "qty", "Jumlah", "Kuantitas"), 1);
+    const satuan = String(getField(r, "Satuan", "unit", "Satuan Dasar") || "PCS").trim();
+    const disc = String(getField(r, "Disc", "Diskon Item") || "").trim() || undefined;
+    const tax = String(getField(r, "Tax", "Pajak Item") || "").trim() || undefined;
+    const harga = parseCleanNumber(getField(r, "Harga", "Harga Beli", "Price"), 0);
+    const subtotalItem = parseCleanNumber(getField(r, "Subtotal Item", "Subtotal_Item", "Total Item"), qty * harga);
 
     const rowHash = hashString(`${noFaktur}_${itemCode}_${noDetail}_${qty}_${harga}_${idx}`);
 
@@ -91,8 +97,8 @@ export function parsePurchaseExcel(buffer: Buffer): { invoices: ParsedPurchaseIn
     if (itemCode || itemName) {
       invoice.items.push({
         noDetail,
-        itemCode,
-        itemName,
+        itemCode: itemCode || "NO_CODE",
+        itemName: itemName || itemCode,
         qty,
         satuan,
         disc,

@@ -5,11 +5,16 @@ import { parseSalesExcel } from "../../lib/parseSales.js";
 import { parsePurchaseExcel } from "../../lib/parsePurchases.js";
 import { parseMasterItemsExcel } from "../../lib/parseMasterItems.js";
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+});
+
 const router = Router();
 
-// POST /api/imports/sales - Upload sales Excel
+// POST /api/imports/sales - Upload sales Excel (High Performance Batch Insert)
 router.post("/sales", upload.single("file"), async (req: Request, res: Response) => {
+  let batchId: number | null = null;
   try {
     if (!req.file) return res.status(400).json({ error: "File Excel wajib diunggah" });
 
@@ -17,113 +22,157 @@ router.post("/sales", upload.single("file"), async (req: Request, res: Response)
     const { rows, errors } = parseSalesExcel(req.file.buffer);
 
     if (rows.length === 0) {
-      return res.status(400).json({ error: "Tidak ada baris data yang valid ditemukan", details: errors });
+      return res.status(400).json({
+        error: "Tidak ada baris data penjualan yang dapat dibaca. Pastikan kolom 'No Transaksi' dan 'Kode Item' ada di dalam file Excel.",
+        details: errors,
+      });
     }
 
-    // 1. Create ImportBatch
+    // Determine period from rows
+    const validTimestamps = rows.map((r) => r.tanggal.getTime()).filter((t) => !isNaN(t));
+    const periodStart = validTimestamps.length > 0 ? new Date(Math.min(...validTimestamps)) : null;
+    const periodEnd = validTimestamps.length > 0 ? new Date(Math.max(...validTimestamps)) : null;
+
+    // 1. Create ImportBatch record
     const batch = await prisma.importBatch.create({
       data: {
         filename,
         status: "PROCESSING",
         rowCount: rows.length,
         type: "SALES",
+        periodStart,
+        periodEnd,
       },
     });
+    batchId = batch.id;
 
-    // 2. Cache Outlets, Items, Employees
+    // 2. Pre-process Outlets in bulk
     const outletMap = new Map<string, number>();
-    const itemMap = new Map<string, number>();
-    const employeeMap = new Map<string, number>();
-
-    // Preload
     const existingOutlets = await prisma.outlet.findMany();
     existingOutlets.forEach((o) => outletMap.set(o.name, o.id));
 
+    const uniqueOutletNames = [...new Set(rows.map((r) => r.cabang).filter(Boolean))];
+    for (const name of uniqueOutletNames) {
+      if (!outletMap.has(name)) {
+        const newOutlet = await prisma.outlet.upsert({
+          where: { name },
+          update: {},
+          create: { name, branch: "BANDUNG" },
+        });
+        outletMap.set(name, newOutlet.id);
+      }
+    }
+
+    // 3. Pre-process Employees in bulk
+    const employeeMap = new Map<string, number>();
     const existingEmployees = await prisma.employee.findMany();
     existingEmployees.forEach((e) => employeeMap.set(e.name, e.id));
 
-    const existingItems = await prisma.item.findMany();
+    const uniqueEmpNames = [...new Set(rows.map((r) => r.pegawai).filter(Boolean))];
+    for (const name of uniqueEmpNames) {
+      if (!employeeMap.has(name)) {
+        const newEmp = await prisma.employee.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
+        employeeMap.set(name, newEmp.id);
+      }
+    }
+
+    // 4. Pre-process Items in bulk
+    const itemMap = new Map<string, number>();
+    const existingItems = await prisma.item.findMany({ where: { branch: "BANDUNG" } });
     existingItems.forEach((i) => itemMap.set(i.code, i.id));
 
-    let insertedCount = 0;
+    const itemMetaMap = new Map<string, { code: string; name: string; itemGroup?: string }>();
+    for (const r of rows) {
+      if (r.kodeItem && !itemMap.has(r.kodeItem) && !itemMetaMap.has(r.kodeItem)) {
+        itemMetaMap.set(r.kodeItem, { code: r.kodeItem, name: r.namaItem, itemGroup: r.itemGroup });
+      }
+    }
+
+    for (const it of itemMetaMap.values()) {
+      const newItem = await prisma.item.upsert({
+        where: { code_branch: { code: it.code, branch: "BANDUNG" } },
+        update: {
+          name: it.name,
+          itemGroup: it.itemGroup || undefined,
+        },
+        create: {
+          code: it.code,
+          name: it.name,
+          itemGroup: it.itemGroup,
+          branch: "BANDUNG",
+          isFromSalesImport: true,
+        },
+      });
+      itemMap.set(it.code, newItem.id);
+    }
+
+    // 5. Deduplicate against existing rowHashes in bulk
+    const allHashes = rows.map((r) => r.rowHash);
+    const existingSales = await prisma.sale.findMany({
+      where: { rowHash: { in: allHashes } },
+      select: { rowHash: true },
+    });
+    const existingHashSet = new Set(existingSales.map((s) => s.rowHash));
+
+    // Fallback outlet & employee
+    const defaultOutletId = outletMap.values().next().value || 1;
+    const defaultEmpId = employeeMap.values().next().value || 1;
+
+    // Prepare rows for bulk insert
+    const salesToInsert: any[] = [];
     let duplicateCount = 0;
 
     for (const r of rows) {
-      // Ensure Outlet
-      if (!outletMap.has(r.cabang)) {
-        const newOutlet = await prisma.outlet.upsert({
-          where: { name: r.cabang },
-          update: {},
-          create: { name: r.cabang, branch: "BANDUNG" },
-        });
-        outletMap.set(r.cabang, newOutlet.id);
-      }
-      const outletId = outletMap.get(r.cabang)!;
-
-      // Ensure Employee
-      if (!employeeMap.has(r.pegawai)) {
-        const newEmp = await prisma.employee.upsert({
-          where: { name: r.pegawai },
-          update: {},
-          create: { name: r.pegawai },
-        });
-        employeeMap.set(r.pegawai, newEmp.id);
-      }
-      const employeeId = employeeMap.get(r.pegawai)!;
-
-      // Ensure Item
-      if (!itemMap.has(r.kodeItem)) {
-        const newItem = await prisma.item.upsert({
-          where: { code_branch: { code: r.kodeItem, branch: "BANDUNG" } },
-          update: {
-            name: r.namaItem,
-            itemGroup: r.itemGroup || undefined,
-          },
-          create: {
-            code: r.kodeItem,
-            name: r.namaItem,
-            itemGroup: r.itemGroup,
-            branch: "BANDUNG",
-            isFromSalesImport: true,
-          },
-        });
-        itemMap.set(r.kodeItem, newItem.id);
-      }
-      const itemId = itemMap.get(r.kodeItem)!;
-
-      // Check duplicate
-      const exists = await prisma.sale.findUnique({
-        where: { rowHash: r.rowHash },
-      });
-
-      if (exists) {
+      if (existingHashSet.has(r.rowHash)) {
         duplicateCount++;
         continue;
       }
 
-      await prisma.sale.create({
-        data: {
-          noTransaksi: r.noTransaksi,
-          tanggal: r.tanggal,
-          jamBuat: r.jamBuat,
-          customer: r.customer,
-          qty: r.qty,
-          unit: r.unit,
-          hargaJual: r.hargaJual,
-          diskon: r.diskon,
-          subtotal: r.subtotal,
-          hpp: r.hpp,
-          labaRugi: r.labaRugi,
-          rowHash: r.rowHash,
-          outletId,
-          itemId,
-          employeeId,
-          importId: batch.id,
-        },
+      const outletId = outletMap.get(r.cabang) || defaultOutletId;
+      const employeeId = employeeMap.get(r.pegawai) || defaultEmpId;
+      const itemId = itemMap.get(r.kodeItem);
+
+      if (!itemId) {
+        continue;
+      }
+
+      salesToInsert.push({
+        noTransaksi: r.noTransaksi,
+        tanggal: r.tanggal,
+        jamBuat: r.jamBuat,
+        customer: r.customer,
+        qty: Math.round(r.qty),
+        unit: r.unit,
+        hargaJual: r.hargaJual,
+        diskon: r.diskon,
+        subtotal: r.subtotal,
+        hpp: r.hpp,
+        labaRugi: r.labaRugi,
+        rowHash: r.rowHash,
+        outletId,
+        itemId,
+        employeeId,
+        importId: batch.id,
       });
-      insertedCount++;
     }
 
+    // 6. Fast Chunked Insert (500 rows per batch)
+    let insertedCount = 0;
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < salesToInsert.length; i += CHUNK_SIZE) {
+      const chunk = salesToInsert.slice(i, i + CHUNK_SIZE);
+      await prisma.sale.createMany({
+        data: chunk,
+        skipDuplicates: true,
+      });
+      insertedCount += chunk.length;
+    }
+
+    // 7. Update Batch Status
     await prisma.importBatch.update({
       where: { id: batch.id },
       data: {
@@ -139,15 +188,22 @@ router.post("/sales", upload.single("file"), async (req: Request, res: Response)
       rowCount: rows.length,
       insertedCount,
       duplicateCount,
-      errors,
+      errors: errors.slice(0, 10),
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    if (batchId) {
+      await prisma.importBatch.update({
+        where: { id: batchId },
+        data: { status: "FAILED", errorMessage: err.message },
+      }).catch(() => {});
+    }
+    res.status(500).json({ error: err.message || "Gagal memproses data penjualan" });
   }
 });
 
 // POST /api/imports/purchases - Upload purchases Excel
 router.post("/purchases", upload.single("file"), async (req: Request, res: Response) => {
+  let batchId: number | null = null;
   try {
     if (!req.file) return res.status(400).json({ error: "File Excel wajib diunggah" });
 
@@ -155,8 +211,16 @@ router.post("/purchases", upload.single("file"), async (req: Request, res: Respo
     const { invoices, errors } = parsePurchaseExcel(req.file.buffer);
 
     if (invoices.length === 0) {
-      return res.status(400).json({ error: "Tidak ada faktur pembelian yang valid", details: errors });
+      return res.status(400).json({
+        error: "Tidak ada faktur pembelian yang valid. Pastikan kolom 'No Faktur' dan 'Vendor' terisi.",
+        details: errors,
+      });
     }
+
+    // Determine period
+    const validTimestamps = invoices.map((inv) => inv.tanggal.getTime()).filter((t) => !isNaN(t));
+    const periodStart = validTimestamps.length > 0 ? new Date(Math.min(...validTimestamps)) : null;
+    const periodEnd = validTimestamps.length > 0 ? new Date(Math.max(...validTimestamps)) : null;
 
     const batch = await prisma.importBatch.create({
       data: {
@@ -164,26 +228,46 @@ router.post("/purchases", upload.single("file"), async (req: Request, res: Respo
         status: "PROCESSING",
         rowCount: invoices.length,
         type: "PURCHASES",
+        periodStart,
+        periodEnd,
       },
     });
+    batchId = batch.id;
+
+    // Cache Vendors & Outlets
+    const vendorMap = new Map<string, number>();
+    const existingVendors = await prisma.vendor.findMany();
+    existingVendors.forEach((v) => vendorMap.set(v.name, v.id));
+
+    const outletMap = new Map<string, number>();
+    const existingOutlets = await prisma.outlet.findMany();
+    existingOutlets.forEach((o) => outletMap.set(o.name, o.id));
 
     let insertedInvoices = 0;
     let updatedInvoices = 0;
 
     for (const inv of invoices) {
       // Ensure Vendor
-      const vendor = await prisma.vendor.upsert({
-        where: { name: inv.vendor },
-        update: {},
-        create: { name: inv.vendor },
-      });
+      if (!vendorMap.has(inv.vendor)) {
+        const v = await prisma.vendor.upsert({
+          where: { name: inv.vendor },
+          update: {},
+          create: { name: inv.vendor },
+        });
+        vendorMap.set(inv.vendor, v.id);
+      }
+      const vendorId = vendorMap.get(inv.vendor)!;
 
       // Ensure Outlet
-      const outlet = await prisma.outlet.upsert({
-        where: { name: inv.cabang },
-        update: {},
-        create: { name: inv.cabang, branch: "BANDUNG" },
-      });
+      if (!outletMap.has(inv.cabang)) {
+        const o = await prisma.outlet.upsert({
+          where: { name: inv.cabang },
+          update: {},
+          create: { name: inv.cabang, branch: "BANDUNG" },
+        });
+        outletMap.set(inv.cabang, o.id);
+      }
+      const outletId = outletMap.get(inv.cabang)!;
 
       // Upsert Purchase Invoice
       const existingInv = await prisma.purchaseInvoice.findUnique({
@@ -201,8 +285,8 @@ router.post("/purchases", upload.single("file"), async (req: Request, res: Respo
             diskon: inv.diskon,
             lainLain: inv.lainLain,
             total: inv.total,
-            vendorId: vendor.id,
-            outletId: outlet.id,
+            vendorId,
+            outletId,
           },
         });
         invoiceRecordId = existingInv.id;
@@ -213,8 +297,8 @@ router.post("/purchases", upload.single("file"), async (req: Request, res: Respo
             noFaktur: inv.noFaktur,
             fakturRef: inv.fakturRef,
             tanggal: inv.tanggal,
-            vendorId: vendor.id,
-            outletId: outlet.id,
+            vendorId,
+            outletId,
             mataUang: inv.mataUang,
             subtotal: inv.subtotal,
             pajak: inv.pajak,
@@ -228,11 +312,10 @@ router.post("/purchases", upload.single("file"), async (req: Request, res: Respo
         insertedInvoices++;
       }
 
-      // Upsert items
+      // Upsert Purchase Items
       for (const it of inv.items) {
-        // Link to Item if code matches
         const itemRecord = await prisma.item.findFirst({
-          where: { code: it.itemCode },
+          where: { code: it.itemCode, branch: "BANDUNG" },
         });
 
         await prisma.purchaseItem.upsert({
@@ -258,13 +341,10 @@ router.post("/purchases", upload.single("file"), async (req: Request, res: Respo
           },
         });
 
-        // Update last purchase price on Item if matched
-        if (itemRecord) {
+        if (itemRecord && it.harga > 0) {
           await prisma.item.update({
             where: { id: itemRecord.id },
-            data: {
-              lastPurchasePrice: it.harga,
-            },
+            data: { lastPurchasePrice: it.harga },
           });
         }
       }
@@ -285,10 +365,16 @@ router.post("/purchases", upload.single("file"), async (req: Request, res: Respo
       invoicesCount: invoices.length,
       insertedInvoices,
       updatedInvoices,
-      errors,
+      errors: errors.slice(0, 10),
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    if (batchId) {
+      await prisma.importBatch.update({
+        where: { id: batchId },
+        data: { status: "FAILED", errorMessage: err.message },
+      }).catch(() => {});
+    }
+    res.status(500).json({ error: err.message || "Gagal memproses data pembelian" });
   }
 });
 
@@ -298,55 +384,66 @@ router.post("/master-items", upload.single("file"), async (req: Request, res: Re
     if (!req.file) return res.status(400).json({ error: "File Excel wajib diunggah" });
 
     const items = parseMasterItemsExcel(req.file.buffer);
-    if (items.length === 0) return res.status(400).json({ error: "Tidak ada data item yang valid" });
-
-    let upsertCount = 0;
-    for (const it of items) {
-      await prisma.item.upsert({
-        where: { code_branch: { code: it.code, branch: "BANDUNG" } },
-        update: {
-          name: it.name,
-          barcode: it.barcode,
-          itemGroup: it.itemGroup,
-          unitBase: it.unitBase,
-          unitPurchase: it.unitPurchase,
-          lastPurchasePrice: it.lastPurchasePrice,
-          avgHpp: it.avgHpp,
-          priceRetail: it.priceRetail,
-          priceAgent: it.priceAgent,
-          priceOnline: it.priceOnline,
-          priceRepack: it.priceRepack,
-          priceBranch: it.priceBranch,
-          marginRetail: it.marginRetail,
-          status: it.status,
-          isFromSalesImport: false,
-        },
-        create: {
-          code: it.code,
-          name: it.name,
-          barcode: it.barcode,
-          itemGroup: it.itemGroup,
-          unitBase: it.unitBase,
-          unitPurchase: it.unitPurchase,
-          lastPurchasePrice: it.lastPurchasePrice,
-          avgHpp: it.avgHpp,
-          priceRetail: it.priceRetail,
-          priceAgent: it.priceAgent,
-          priceOnline: it.priceOnline,
-          priceRepack: it.priceRepack,
-          priceBranch: it.priceBranch,
-          marginRetail: it.marginRetail,
-          status: it.status,
-          branch: "BANDUNG",
-          isFromSalesImport: false,
-        },
+    if (items.length === 0) {
+      return res.status(400).json({
+        error: "Tidak ada baris data barang yang valid. Pastikan terdapat kolom 'Kode Item' dan 'Nama Item'.",
       });
-      upsertCount++;
     }
 
-    res.json({ success: true, count: upsertCount });
+    let upsertCount = 0;
+    const CHUNK_SIZE = 50;
+
+    for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+      const chunk = items.slice(i, i + CHUNK_SIZE);
+      await Promise.all(
+        chunk.map((it) =>
+          prisma.item.upsert({
+            where: { code_branch: { code: it.code, branch: "BANDUNG" } },
+            update: {
+              name: it.name,
+              barcode: it.barcode,
+              itemGroup: it.itemGroup,
+              unitBase: it.unitBase,
+              unitPurchase: it.unitPurchase,
+              lastPurchasePrice: it.lastPurchasePrice,
+              avgHpp: it.avgHpp,
+              priceRetail: it.priceRetail,
+              priceAgent: it.priceAgent,
+              priceOnline: it.priceOnline,
+              priceRepack: it.priceRepack,
+              priceBranch: it.priceBranch,
+              marginRetail: it.marginRetail,
+              status: it.status,
+              isFromSalesImport: false,
+            },
+            create: {
+              code: it.code,
+              name: it.name,
+              barcode: it.barcode,
+              itemGroup: it.itemGroup,
+              unitBase: it.unitBase,
+              unitPurchase: it.unitPurchase,
+              lastPurchasePrice: it.lastPurchasePrice,
+              avgHpp: it.avgHpp,
+              priceRetail: it.priceRetail,
+              priceAgent: it.priceAgent,
+              priceOnline: it.priceOnline,
+              priceRepack: it.priceRepack,
+              priceBranch: it.priceBranch,
+              marginRetail: it.marginRetail,
+              status: it.status,
+              branch: "BANDUNG",
+              isFromSalesImport: false,
+            },
+          })
+        )
+      );
+      upsertCount += chunk.length;
+    }
+
+    res.json({ success: true, count: upsertCount, total: items.length });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || "Gagal memproses master item" });
   }
 });
 
@@ -358,6 +455,19 @@ router.get("/", async (req: Request, res: Response) => {
       take: 50,
     });
     res.json(batches);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/imports/:id - Delete an import batch and cascade sales/purchases
+router.delete("/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    await prisma.sale.deleteMany({ where: { importId: id } });
+    await prisma.purchaseInvoice.deleteMany({ where: { importId: id } });
+    await prisma.importBatch.delete({ where: { id } });
+    res.json({ success: true, message: "Batch import berhasil dihapus" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

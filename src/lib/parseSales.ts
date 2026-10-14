@@ -1,6 +1,6 @@
 import * as xlsx from "xlsx";
-import { excelDateToDate } from "./parseMasterItems.js";
 import { hashString } from "./password.js";
+import { parseCleanNumber, parseCleanDate, getField, extractRowsWithHeaders } from "./excelUtils.js";
 
 export interface ParsedSaleRow {
   noTransaksi: string;
@@ -24,38 +24,44 @@ export interface ParsedSaleRow {
 
 export function parseSalesExcel(buffer: Buffer): { rows: ParsedSaleRow[]; errors: string[] } {
   const wb = xlsx.read(buffer, { type: "buffer" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rawRows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+  const rawRows = extractRowsWithHeaders(wb, ["no transaksi", "kode item", "subtotal", "nama item"]);
 
   const rows: ParsedSaleRow[] = [];
   const errors: string[] = [];
 
   rawRows.forEach((r, idx) => {
-    const noTransaksi = String(r["No Transaksi"] || r["No. Transaksi"] || "").trim();
-    const kodeItem = String(r["Kode Item"] || r["Kode"] || "").trim();
-    const namaItem = String(r["Nama Item"] || r["Nama"] || "").trim();
+    const noTransaksi = String(getField(r, "No Transaksi", "No. Transaksi", "No_Transaksi", "NoTransaksi", "Transaksi") || "").trim();
+    const kodeItem = String(getField(r, "Kode Item", "Kode", "Kode_Item", "KodeItem", "SKU") || "").trim();
+    const namaItem = String(getField(r, "Nama Item", "Nama", "Nama_Item", "NamaItem", "Item") || "").trim();
+
+    // Skip empty filler rows
+    if (!noTransaksi && !kodeItem && !namaItem) {
+      return;
+    }
 
     if (!noTransaksi || !kodeItem) {
       if (namaItem) {
-        errors.push(`Baris ${idx + 2}: Kolom No Transaksi atau Kode Item kosong`);
+        errors.push(`Baris ${idx + 2}: Kolom No Transaksi atau Kode Item tidak terisi (${namaItem})`);
       }
       return;
     }
 
-    const rawTanggal = r["Tanggal"];
-    const tanggal = excelDateToDate(rawTanggal);
-    const jamBuat = String(r["Jam Buat"] || "00:00:00").trim();
-    const cabang = String(r["Cabang"] || "CABANG PADASUKA").trim();
-    const customer = String(r["Customer"] || "CASH").trim();
-    const itemGroup = String(r["Item Group"] || "").trim();
-    const qty = parseFloat(r["qty"] || r["Qty"] || 1);
-    const unit = String(r["unit"] || r["Satuan"] || "PCS").trim();
-    const hargaJual = parseFloat(r["Harga Jual"] || 0);
-    const diskon = parseFloat(r["Diskon"] || 0);
-    const subtotal = parseFloat(r["Subtotal"] || 0);
-    const hpp = parseFloat(r["HPP"] || 0);
-    const labaRugi = parseFloat(r["Laba Rugi"] || 0);
-    const pegawai = String(r["Pegawai"] || "Tidak Diketahui").trim();
+    const rawTanggal = getField(r, "Tanggal", "Tgl", "Date", "Tgl Transaksi");
+    const tanggal = parseCleanDate(rawTanggal);
+
+    const jamBuat = String(getField(r, "Jam Buat", "Jam", "Waktu", "Time") || "00:00:00").trim();
+    const cabang = String(getField(r, "Cabang", "Outlet", "Store", "Branch") || "CABANG PADASUKA").trim();
+    const customer = String(getField(r, "Customer", "Pelanggan", "Cust") || "CASH").trim();
+    const itemGroup = String(getField(r, "Item Group", "ItemGroup", "Kategori", "Grup", "Kategori / Grup") || "").trim();
+
+    const qty = parseCleanNumber(getField(r, "qty", "Qty", "Jumlah", "Kuantitas"), 1);
+    const unit = String(getField(r, "unit", "Satuan", "Unit") || "PCS").trim();
+    const hargaJual = parseCleanNumber(getField(r, "Harga Jual", "Harga", "Price", "Harga_Jual"), 0);
+    const diskon = parseCleanNumber(getField(r, "Diskon", "Disc", "Discount"), 0);
+    const subtotal = parseCleanNumber(getField(r, "Subtotal", "Total", "Omzet", "Nilai"), qty * hargaJual - diskon);
+    const hpp = parseCleanNumber(getField(r, "HPP", "Harga Pokok", "Modal"), 0);
+    const labaRugi = parseCleanNumber(getField(r, "Laba Rugi", "Laba", "Profit", "Margin"), subtotal - hpp);
+    const pegawai = String(getField(r, "Pegawai", "Kasir", "Sales", "Karyawan", "Staff") || "Tidak Diketahui").trim();
 
     // Unique rowHash to deduplicate records accurately
     const hashData = `${noTransaksi}_${tanggal.toISOString().split("T")[0]}_${jamBuat}_${cabang}_${kodeItem}_${qty}_${subtotal}_${idx}`;
