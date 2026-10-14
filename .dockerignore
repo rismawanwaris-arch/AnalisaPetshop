@@ -1,0 +1,16 @@
+node_modules
+pgdata
+docker-data
+dist
+dist-server
+.git
+.gitignore
+.env
+.env.*
+*.xls
+*.xlsx
+*.csv
+*.log
+.DS_Store
+README.md
+blueprint_tanpa_tartun_server.md
