@@ -10,13 +10,20 @@ export const ImportPage: React.FC = () => {
   const [masterFile, setMasterFile] = useState<File | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Fetch Import Batches History
+  // Fetch Import Batches History with auto-refresh when processing
   const { data: batches, isLoading } = useQuery({
     queryKey: ["imports"],
     queryFn: async () => {
       const res = await fetch("/api/imports");
       if (!res.ok) throw new Error("Gagal mengambil riwayat import");
       return res.json();
+    },
+    refetchInterval: (query) => {
+      const list = query.state.data;
+      if (Array.isArray(list) && list.some((b: any) => b.status === "PROCESSING")) {
+        return 2000;
+      }
+      return false;
     },
   });
 
@@ -259,15 +266,16 @@ export const ImportPage: React.FC = () => {
                   <td className="py-2.5 px-4 text-right font-semibold text-emerald-600">{formatNumber(b.insertedCount)}</td>
                   <td className="py-2.5 px-4 text-center">
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                         b.status === "DONE"
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : b.status === "FAILED"
                           ? "bg-red-50 text-red-700 border border-red-200"
-                          : "bg-amber-50 text-amber-700 border border-amber-200"
+                          : "bg-amber-50 text-amber-700 border border-amber-200 animate-pulse"
                       }`}
                     >
-                      {b.status}
+                      {b.status === "PROCESSING" && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                      <span>{b.status === "PROCESSING" ? "Memproses..." : b.status}</span>
                     </span>
                   </td>
                   <td className="py-2.5 px-4 text-center">
