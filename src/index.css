@@ -7,3 +7,213 @@
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
 }
+
+/* ==========================================================================
+   Executive Dark Mode Theme System
+   Provides seamless, professional dark surfaces across cards, tables,
+   filters, inputs, and typography without broken white rectangles.
+   ========================================================================== */
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* 1. App Shell & Page Surfaces */
+.dark body,
+.dark .bg-slate-50\/75 {
+  background-color: #020617 !important; /* slate-950 */
+}
+
+/* 2. Content Cards & Panels (Fixes stark white rectangles on black) */
+.dark .bg-white {
+  background-color: #0f172a !important; /* slate-900 */
+}
+
+.dark .bg-white\/95,
+.dark .bg-white\/90,
+.dark .bg-white\/80,
+.dark .bg-white\/70 {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-50\/90,
+.dark .bg-slate-50\/80,
+.dark .bg-slate-50\/70,
+.dark .bg-slate-50\/60,
+.dark .bg-slate-50\/50 {
+  background-color: #0b1120 !important; /* Inner container slate */
+}
+
+.dark .bg-slate-100 {
+  background-color: #1e293b !important; /* slate-800 */
+}
+
+.dark .bg-slate-100\/80,
+.dark .bg-slate-100\/70,
+.dark .bg-slate-100\/60 {
+  background-color: rgba(30, 41, 59, 0.75) !important;
+}
+
+.dark .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+/* 3. Borders, Dividers & Outlines */
+.dark .border-slate-200,
+.dark .border-slate-200\/90,
+.dark .border-slate-200\/80,
+.dark .border-slate-200\/60,
+.dark .border-slate-100 {
+  border-color: #1e293b !important; /* slate-800 subtle border */
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1e293b !important;
+}
+
+/* 4. Typography & Headings */
+.dark .text-slate-900 {
+  color: #f8fafc !important; /* Pure white heading */
+}
+
+.dark .text-slate-800 {
+  color: #f1f5f9 !important; /* High contrast body text */
+}
+
+.dark .text-slate-700 {
+  color: #cbd5e1 !important; /* Secondary text */
+}
+
+.dark .text-slate-600 {
+  color: #94a3b8 !important; /* Medium muted text */
+}
+
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: #64748b !important; /* Dim caption text */
+}
+
+/* 5. Form Controls (Inputs, Selects, Buttons) */
+.dark input[type="text"],
+.dark input[type="date"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="search"],
+.dark select,
+.dark textarea {
+  background-color: #0b1120 !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark select option {
+  background-color: #0f172a !important;
+  color: #f1f5f9 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* 6. Tables, Headers & Hover States */
+.dark table thead,
+.dark table thead th {
+  background-color: #0b1120 !important;
+  color: #94a3b8 !important;
+  border-color: #1e293b !important;
+}
+
+.dark table tbody tr:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-50\/80:hover,
+.dark .hover\:bg-slate-50\/70:hover,
+.dark .hover\:bg-slate-50\/60:hover {
+  background-color: #1e293b !important;
+}
+
+.dark .hover\:bg-slate-100:hover,
+.dark .hover\:bg-slate-200:hover {
+  background-color: #334155 !important;
+}
+
+.dark table tfoot {
+  background-color: #0b1120 !important;
+  border-color: #1e293b !important;
+}
+
+/* 7. Category Badges & Status Pills */
+.dark .bg-blue-50,
+.dark .bg-blue-100,
+.dark .bg-sky-50,
+.dark .bg-sky-100 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.dark .bg-emerald-50,
+.dark .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.dark .bg-purple-50,
+.dark .bg-purple-100,
+.dark .bg-indigo-50,
+.dark .bg-indigo-100 {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+  color: #c084fc !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+
+.dark .bg-red-50,
+.dark .bg-red-100,
+.dark .bg-rose-50,
+.dark .bg-rose-100 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.dark .text-emerald-600,
+.dark .text-emerald-700,
+.dark .text-emerald-800 {
+  color: #34d399 !important;
+}
+
+.dark .text-blue-600,
+.dark .text-blue-700,
+.dark .text-blue-800 {
+  color: #60a5fa !important;
+}
+
+.dark .text-amber-600,
+.dark .text-amber-700,
+.dark .text-amber-800 {
+  color: #fbbf24 !important;
+}
+
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: #f87171 !important;
+}
+
+/* 8. Modals & Popups */
+.dark .shadow-2xl,
+.dark .shadow-xl,
+.dark .shadow-md,
+.dark .shadow-sm {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+}
