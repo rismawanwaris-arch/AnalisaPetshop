@@ -12,33 +12,35 @@ Di komputer lokal, aplikasi berjalan di port standar:
 
 ### Perintah:
 ```bash
-# 1. Jalankan server dev lokal
+# 1. Salin template konfigurasi environment
+cp .env.example .env
+
+# 2. Install dependencies & generate database schema
+npm install
+npx prisma generate
+npx prisma db push
+
+# 3. Jalankan server dev lokal
 npm run dev
 
-# 2. Buka di browser
+# 4. Buka di browser
 http://localhost:3000
 ```
 
 ---
 
-## 🐳 Deployment ke ZimaOS (Docker Container di Port 8090)
+## 🐳 Deployment dengan Docker
 
-Aplikasi sudah dilengkapi dengan [Dockerfile](file:///Users/wisnuwar/Documents/Coding/AnalisaPetshop/Dockerfile) dan [docker-compose.yml](file:///Users/wisnuwar/Documents/Coding/AnalisaPetshop/docker-compose.yml) yang dikonfigurasi khusus untuk mengekspos port **8090**.
+Aplikasi sudah dilengkapi dengan [Dockerfile](file:///Users/wisnuwar/Documents/Coding/AnalisaPetshop/Dockerfile) dan [docker-compose.yml](file:///Users/wisnuwar/Documents/Coding/AnalisaPetshop/docker-compose.yml).
 
-### 1. Upload Folder Proyek ke ZimaOS
-Copy atau clone folder ini ke ZimaOS Anda (misalnya di `/DATA/AppData/analisa-petshop`).
-
-### 2. Jalankan Container
-Masuk ke terminal ZimaOS di folder proyek, lalu jalankan:
+### 1. Jalankan Container
 ```bash
 docker compose up -d --build
 ```
 
-### 3. Akses di ZimaOS
+### 2. Akses Aplikasi
 Buka browser:
 ```
-http://<IP-ZIMAOS-ANDA>:8090
+http://localhost:3000
 ```
-
-Container web akan otomatis menjalankan build production dan menghubungkan database postgres internal di port 8090.
-# AnalisaPetshop
+*(atau sesuaikan port dan host sesuai konfigurasi server Anda)*
