@@ -18,8 +18,10 @@ import {
   Building2,
   LogOut,
   Shield,
+  KeyRound,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.js";
+import { ChangePasswordModal } from "./ChangePasswordModal.js";
 
 interface LayoutProps {
   children: React.ReactNode;
