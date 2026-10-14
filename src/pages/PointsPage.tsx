@@ -123,16 +123,22 @@ export const PointsPage: React.FC = () => {
                               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                                 Rincian Penjualan Barang Berpoin:
                               </span>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {emp.itemBreakdown?.map((it: any, i: number) => (
-                                  <div key={i} className="p-2 rounded-md bg-slate-50 text-xs flex justify-between items-center">
-                                    <span className="truncate max-w-[180px] text-slate-700">{it.name}</span>
-                                    <span className="font-semibold text-slate-900 shrink-0">
-                                      {it.qty} pcs ({it.points} Poin)
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
+                              {emp.itemBreakdown?.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                  {emp.itemBreakdown.map((it: any, i: number) => (
+                                    <div key={i} className="p-2 rounded-md bg-slate-50 text-xs flex justify-between items-center">
+                                      <span className="truncate max-w-[180px] text-slate-700">{it.name}</span>
+                                      <span className="font-semibold text-slate-900 shrink-0">
+                                        {it.qty} pcs ({it.points} Poin)
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-slate-400 italic">
+                                  Belum ada transaksi item yang memenuhi aturan poin.
+                                </p>
+                              )}
                             </div>
                           </td>
                         </tr>
