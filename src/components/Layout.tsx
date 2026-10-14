@@ -19,8 +19,11 @@ import {
   LogOut,
   Shield,
   KeyRound,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.js";
+import { useTheme } from "../context/ThemeContext.js";
 import { ChangePasswordModal } from "./ChangePasswordModal.js";
 
 interface LayoutProps {
@@ -43,6 +46,7 @@ interface NavSection {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout, isMaster } = useAuth();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const queryClient = useQueryClient();
 
   // Prefetch settings in the background when user is master so /settings opens immediately
@@ -120,7 +124,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-50/75 flex flex-col md:flex-row text-slate-800">
+    <div className="h-screen w-screen overflow-hidden bg-slate-50/75 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 transition-colors">
       {/* Sidebar - Pinned height, scrollable menu */}
       <aside className="w-full md:w-64 h-auto md:h-screen bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between border-r border-slate-800 select-none z-30">
         <div className="flex flex-col min-h-0 flex-1">
@@ -230,6 +234,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button
+                onClick={toggleTheme}
+                title={resolvedTheme === "dark" ? "Ganti ke Mode Terang (Light Mode)" : "Ganti ke Mode Gelap (Dark Mode)"}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800/80 transition-colors cursor-pointer"
+              >
+                {resolvedTheme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
+              </button>
+              <button
                 onClick={() => setIsPasswordModalOpen(true)}
                 title="Ganti Password Akun"
                 className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800/80 transition-colors cursor-pointer"
@@ -251,36 +262,48 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main Content Area - Scrollable independently */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
         {/* Top Navbar */}
-        <header className="h-16 flex-shrink-0 bg-white border-b border-slate-200/80 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md bg-white/95">
+        <header className="h-16 flex-shrink-0 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md transition-colors">
           <div className="flex items-center gap-3">
             <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Sistem Manajemen Analisis & Pembelian Petshop
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 text-xs bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-medium">
-              <Building2 className="w-3.5 h-3.5 text-slate-500" />
+            <div className="hidden sm:flex items-center gap-2 text-xs bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors">
+              <Building2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <span>Wilayah Bandung: Padasuka</span>
             </div>
 
-            <div className="hidden sm:block h-4 w-px bg-slate-200"></div>
+            <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-800"></div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={toggleTheme}
+                title={resolvedTheme === "dark" ? "Ganti ke Mode Terang (Light Mode)" : "Ganti ke Mode Gelap (Dark Mode)"}
+                className="p-1.5 rounded-lg text-slate-600 dark:text-amber-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer flex items-center justify-center"
+              >
+                {resolvedTheme === "dark" ? (
+                  <Sun className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Moon className="w-4 h-4 text-slate-600" />
+                )}
+              </button>
+
               <div className="text-right hidden sm:block mr-1">
-                <span className="font-bold text-slate-800 block text-xs leading-none">
+                <span className="font-bold text-slate-800 dark:text-slate-100 block text-xs leading-none">
                   {user?.displayName || user?.username}
                 </span>
-                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                <span className="text-[10px] text-slate-400 dark:text-slate-400 font-semibold uppercase tracking-wider">
                   {isMaster ? "👑 Tingkat Master" : "🛡️ Tingkat Admin"}
                 </span>
               </div>
               <button
                 onClick={() => setIsPasswordModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
                 title="Ganti Password Akun Anda"
               >
-                <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+                <KeyRound className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                 <span className="hidden sm:inline">Ganti Password</span>
               </button>
               <button

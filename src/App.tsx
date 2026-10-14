@@ -18,6 +18,7 @@ import { ActivityLogPage } from "./pages/ActivityLogPage.js";
 import { ImportPage } from "./pages/ImportPage.js";
 import { SettingsPage } from "./pages/SettingsPage.js";
 import { DateRangeProvider } from "./context/DateRangeContext.js";
+import { ThemeProvider } from "./context/ThemeContext.js";
 import { Loader2 } from "lucide-react";
 
 // Protected Route Component
@@ -87,9 +88,11 @@ const ProtectedApp: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <ProtectedApp />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ProtectedApp />
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 
