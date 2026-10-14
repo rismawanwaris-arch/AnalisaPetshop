@@ -1,7 +1,15 @@
 import { Router, Request, Response } from "express";
+import multer from "multer";
+import * as xlsx from "xlsx";
 import { prisma } from "../../lib/prisma.js";
 import { hashPassword } from "../../lib/password.js";
 import { requireAuth, requireMaster } from "../middleware.js";
+import { getField } from "../../lib/excelUtils.js";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+});
 
 const router = Router();
 
@@ -206,15 +214,134 @@ router.put("/targets", async (req: Request, res: Response) => {
 });
 
 // ================= ITEM GROUP MAPPINGS =================
+
+// GET /api/settings/mappings/item-group/unmapped - Find groups in DB not yet mapped
+router.get("/mappings/item-group/unmapped", async (req: Request, res: Response) => {
+  try {
+    const existingMappings = await prisma.itemGroupMapping.findMany({
+      select: { itemGroup: true },
+    });
+    const mappedSet = new Set(existingMappings.map((m) => m.itemGroup.trim().toUpperCase()));
+
+    const itemGroups = await prisma.item.findMany({
+      select: { itemGroup: true },
+      distinct: ["itemGroup"],
+    });
+
+    const unmapped = itemGroups
+      .map((i) => i.itemGroup?.trim().toUpperCase())
+      .filter((g): g is string => !!g && !mappedSet.has(g))
+      .sort();
+
+    const allGroups = Array.from(
+      new Set(itemGroups.map((i) => i.itemGroup?.trim().toUpperCase()).filter(Boolean))
+    ).sort();
+
+    res.json({ unmapped, allGroups });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/settings/mappings/item-group/template - Download mapping Excel template
+router.get("/mappings/item-group/template", async (req: Request, res: Response) => {
+  try {
+    const wb = xlsx.utils.book_new();
+    const sampleData = [
+      { "Item Group": "CAT ADULT DRY", "Kategori": "DRYFOOD" },
+      { "Item Group": "MAKANAN BASAH", "Kategori": "WETFOOD" },
+      { "Item Group": "AKSESORIS", "Kategori": "AKSESORIS" },
+      { "Item Group": "PASIR", "Kategori": "PASIR" },
+      { "Item Group": "OBAT", "Kategori": "OBAT" },
+      { "Item Group": "BODYCARE", "Kategori": "AKSESORIS" },
+      { "Item Group": "SNACK KUCING", "Kategori": "SNACK" },
+    ];
+    const ws = xlsx.utils.json_to_sheet(sampleData);
+    xlsx.utils.book_append_sheet(wb, ws, "Pemetaan Grup");
+    const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader("Content-Disposition", 'attachment; filename="template_pemetaan_kategori.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buf);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/settings/mappings/item-group/upload - Upload Excel for bulk group mapping
+router.post("/mappings/item-group/upload", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "File Excel wajib diunggah" });
+
+    const wb = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheetName = wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const rawData = xlsx.utils.sheet_to_json<any>(sheet);
+
+    if (rawData.length === 0) {
+      return res.status(400).json({ error: "File Excel kosong atau kolom tidak dapat dibaca" });
+    }
+
+    let successCount = 0;
+    for (const row of rawData) {
+      const group = getField(row, "Item Group", "ItemGroup", "Grup", "Nama Grup", "Kategori POS", "Group");
+      const cat = getField(row, "Kategori", "Category", "Kategori Baru", "Target Kategori");
+
+      if (group && cat) {
+        const cleanGroup = String(group).trim().toUpperCase();
+        const cleanCat = String(cat).trim().toUpperCase();
+
+        await prisma.itemGroupMapping.upsert({
+          where: { itemGroup: cleanGroup },
+          update: { category: cleanCat },
+          create: { itemGroup: cleanGroup, category: cleanCat },
+        });
+
+        await prisma.pointGroupMapping.upsert({
+          where: { itemGroup: cleanGroup },
+          update: { category: cleanCat },
+          create: { itemGroup: cleanGroup, category: cleanCat },
+        }).catch(() => {});
+
+        successCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      count: successCount,
+      message: `Berhasil mengimpor dan memperbarui ${successCount} pemetaan grup barang.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal mengimpor file pemetaan" });
+  }
+});
+
+// POST /api/settings/mappings/item-group - Add/update single mapping
 router.post("/mappings/item-group", async (req: Request, res: Response) => {
   try {
     const { itemGroup, category } = req.body;
+    if (!itemGroup || !category) {
+      return res.status(400).json({ error: "Nama Grup dan Kategori wajib diisi" });
+    }
+
+    const cleanGroup = String(itemGroup).trim().toUpperCase();
+    const cleanCategory = String(category).trim().toUpperCase();
+
     const m = await prisma.itemGroupMapping.upsert({
-      where: { itemGroup },
-      update: { category },
-      create: { itemGroup, category },
+      where: { itemGroup: cleanGroup },
+      update: { category: cleanCategory },
+      create: { itemGroup: cleanGroup, category: cleanCategory },
     });
-    res.json(m);
+
+    // Also sync pointGroupMapping so target report & points match
+    await prisma.pointGroupMapping.upsert({
+      where: { itemGroup: cleanGroup },
+      update: { category: cleanCategory },
+      create: { itemGroup: cleanGroup, category: cleanCategory },
+    }).catch(() => {});
+
+    res.json({ success: true, mapping: m });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
