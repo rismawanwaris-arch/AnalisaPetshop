@@ -74,7 +74,183 @@ router.get("/vendors", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/purchases/invoices - List invoices with filtering
+// GET /api/purchases/summary - KPI stat cards summary
+router.get("/summary", async (req: Request, res: Response) => {
+  try {
+    const { vendorId, outletId, search, from, to } = req.query;
+
+    const whereInvoice: any = {};
+    if (vendorId) whereInvoice.vendorId = parseInt(String(vendorId));
+    if (outletId) whereInvoice.outletId = parseInt(String(outletId));
+    if (from || to) {
+      whereInvoice.tanggal = {};
+      if (from) whereInvoice.tanggal.gte = new Date(String(from));
+      if (to) whereInvoice.tanggal.lte = new Date(String(to));
+    }
+    if (search) {
+      const q = String(search).trim();
+      whereInvoice.OR = [
+        { noFaktur: { contains: q, mode: "insensitive" } },
+        { vendor: { name: { contains: q, mode: "insensitive" } } },
+        { items: { some: { itemName: { contains: q, mode: "insensitive" } } } },
+      ];
+    }
+
+    const invoices = await prisma.purchaseInvoice.findMany({
+      where: whereInvoice,
+      select: {
+        id: true,
+        total: true,
+        vendorId: true,
+        items: {
+          select: {
+            itemCode: true,
+            qty: true,
+          },
+        },
+      },
+    });
+
+    let totalBelanja = 0;
+    const vendorSet = new Set<number>();
+    let totalKuantitas = 0;
+    const itemSet = new Set<string>();
+
+    for (const inv of invoices) {
+      totalBelanja += Number(inv.total) || 0;
+      if (inv.vendorId) vendorSet.add(inv.vendorId);
+      for (const it of inv.items) {
+        totalKuantitas += Number(it.qty) || 0;
+        if (it.itemCode) itemSet.add(it.itemCode);
+      }
+    }
+
+    res.json({
+      totalBelanja,
+      totalNota: invoices.length,
+      suplierAktif: vendorSet.size,
+      totalKuantitas,
+      totalVarian: itemSet.size,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal mengambil ringkasan pembelian" });
+  }
+});
+
+// GET /api/purchases/top-items - List items ordered by spend or qty
+router.get("/top-items", async (req: Request, res: Response) => {
+  try {
+    const { from, to, vendorId, outletId, search, sortBy = "spend", limit = "100" } = req.query;
+
+    const whereInvoice: any = {};
+    if (vendorId) whereInvoice.vendorId = parseInt(String(vendorId));
+    if (outletId) whereInvoice.outletId = parseInt(String(outletId));
+    if (from || to) {
+      whereInvoice.tanggal = {};
+      if (from) whereInvoice.tanggal.gte = new Date(String(from));
+      if (to) whereInvoice.tanggal.lte = new Date(String(to));
+    }
+
+    const whereItem: any = {
+      invoice: whereInvoice,
+    };
+
+    if (search) {
+      const q = String(search).trim();
+      whereItem.OR = [
+        { itemCode: { contains: q, mode: "insensitive" } },
+        { itemName: { contains: q, mode: "insensitive" } },
+        { invoice: { noFaktur: { contains: q, mode: "insensitive" } } },
+      ];
+    }
+
+    const items = await prisma.purchaseItem.findMany({
+      where: whereItem,
+      select: {
+        itemCode: true,
+        itemName: true,
+        qty: true,
+        subtotalItem: true,
+        invoice: {
+          select: {
+            vendor: {
+              select: { name: true },
+            },
+          },
+        },
+      },
+    });
+
+    const map = new Map<string, {
+      itemCode: string;
+      itemName: string;
+      totalQty: number;
+      totalSpend: number;
+      vendors: Map<string, number>;
+    }>();
+
+    for (const it of items) {
+      const key = it.itemCode || it.itemName;
+      let existing = map.get(key);
+      if (!existing) {
+        existing = {
+          itemCode: it.itemCode || "-",
+          itemName: it.itemName || "-",
+          totalQty: 0,
+          totalSpend: 0,
+          vendors: new Map<string, number>(),
+        };
+        map.set(key, existing);
+      }
+
+      const qty = Number(it.qty) || 0;
+      const subtotal = Number(it.subtotalItem) || 0;
+      existing.totalQty += qty;
+      existing.totalSpend += subtotal;
+
+      const vName = it.invoice?.vendor?.name || "-";
+      existing.vendors.set(vName, (existing.vendors.get(vName) || 0) + subtotal);
+    }
+
+    const result = Array.from(map.values()).map((r) => {
+      let mainSupplier = "-";
+      let maxSpend = -1;
+      for (const [v, spend] of r.vendors.entries()) {
+        if (spend > maxSpend) {
+          maxSpend = spend;
+          mainSupplier = v;
+        }
+      }
+
+      const avgPrice = r.totalQty > 0 ? r.totalSpend / r.totalQty : 0;
+
+      return {
+        itemCode: r.itemCode,
+        itemName: r.itemName,
+        totalQty: r.totalQty,
+        totalSpend: r.totalSpend,
+        avgPrice: Math.round(avgPrice),
+        supplierUtama: mainSupplier,
+      };
+    });
+
+    if (sortBy === "qty") {
+      result.sort((a, b) => b.totalQty - a.totalQty);
+    } else {
+      result.sort((a, b) => b.totalSpend - a.totalSpend);
+    }
+
+    const maxLimit = Math.min(500, Math.max(1, parseInt(String(limit)) || 100));
+    const sliced = result.slice(0, maxLimit).map((item, idx) => ({
+      rank: idx + 1,
+      ...item,
+    }));
+
+    res.json(sliced);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal mengambil data item terbanyak dibeli" });
+  }
+});
 router.get("/invoices", async (req: Request, res: Response) => {
   try {
     const { vendorId, outletId, search, from, to } = req.query;
