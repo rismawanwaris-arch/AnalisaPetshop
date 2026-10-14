@@ -24,8 +24,10 @@ enum TargetScope {
 }
 
 enum ReportCategory {
-  PETSHOP
+  DRYFOOD
+  WETFOOD
   AKSESORIS
+  PETSHOP
   SP_VOUCHER
 }
 

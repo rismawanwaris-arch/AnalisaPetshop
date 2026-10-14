@@ -249,12 +249,12 @@ router.get("/mappings/item-group/template", async (req: Request, res: Response) 
     const wb = xlsx.utils.book_new();
     const sampleData = [
       { "Item Group": "CAT ADULT DRY", "Kategori": "DRYFOOD" },
+      { "Item Group": "CAT KITTEN DRY", "Kategori": "DRYFOOD" },
       { "Item Group": "MAKANAN BASAH", "Kategori": "WETFOOD" },
+      { "Item Group": "SNACK KUCING", "Kategori": "WETFOOD" },
       { "Item Group": "AKSESORIS", "Kategori": "AKSESORIS" },
-      { "Item Group": "PASIR", "Kategori": "PASIR" },
-      { "Item Group": "OBAT", "Kategori": "OBAT" },
-      { "Item Group": "BODYCARE", "Kategori": "AKSESORIS" },
-      { "Item Group": "SNACK KUCING", "Kategori": "SNACK" },
+      { "Item Group": "PASIR", "Kategori": "AKSESORIS" },
+      { "Item Group": "OBAT", "Kategori": "AKSESORIS" },
     ];
     const ws = xlsx.utils.json_to_sheet(sampleData);
     xlsx.utils.book_append_sheet(wb, ws, "Pemetaan Grup");

@@ -67,7 +67,7 @@ export const SettingsPage: React.FC = () => {
   const [newRole, setNewRole] = useState("admin");
 
   const [newGroupName, setNewGroupName] = useState("");
-  const [newGroupCat, setNewGroupCat] = useState("PETSHOP");
+  const [newGroupCat, setNewGroupCat] = useState("DRYFOOD");
 
   const [newPointPattern, setNewPointPattern] = useState("");
   const [newPointValue, setNewPointValue] = useState("5");
@@ -80,7 +80,9 @@ export const SettingsPage: React.FC = () => {
   // Initialize targets when data loads
   React.useEffect(() => {
     if (data?.targets) {
-      setTargetForm(data.targets);
+      const validCategories = ["DRYFOOD", "WETFOOD", "AKSESORIS"];
+      const filtered = data.targets.filter((t: any) => validCategories.includes(t.category));
+      setTargetForm(filtered.length > 0 ? filtered : data.targets);
     }
   }, [data]);
 
@@ -319,7 +321,10 @@ export const SettingsPage: React.FC = () => {
                           type="button"
                           onClick={() => {
                             setNewGroupName(grp);
-                            setNewGroupCat("PETSHOP");
+                            const upper = grp.toUpperCase();
+                            if (upper.includes("DRY")) setNewGroupCat("DRYFOOD");
+                            else if (upper.includes("BASAH") || upper.includes("WET") || upper.includes("SNACK")) setNewGroupCat("WETFOOD");
+                            else setNewGroupCat("AKSESORIS");
                           }}
                           className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 text-amber-950 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
                         >
@@ -355,17 +360,33 @@ export const SettingsPage: React.FC = () => {
                       </datalist>
                     </div>
 
-                    <div className="sm:col-span-4">
-                      <label className="text-[11px] font-semibold text-slate-500 block mb-1">
+                    <div className="sm:col-span-4 space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-500 block">
                         Dipetakan Ke Kategori Target:
                       </label>
                       <input
                         type="text"
-                        placeholder="Contoh: DRYFOOD, WETFOOD, AKSESORIS..."
+                        placeholder="DRYFOOD / WETFOOD / AKSESORIS"
                         value={newGroupCat}
-                        onChange={(e) => setNewGroupCat(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        onChange={(e) => setNewGroupCat(e.target.value.toUpperCase())}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
                       />
+                      <div className="flex gap-1.5 pt-0.5">
+                        {["DRYFOOD", "WETFOOD", "AKSESORIS"].map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setNewGroupCat(cat)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border cursor-pointer transition-colors ${
+                              newGroupCat === cat
+                                ? "bg-emerald-600 text-white border-emerald-600"
+                                : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                            }`}
+                          >
+                            + {cat}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="sm:col-span-3 flex items-end">

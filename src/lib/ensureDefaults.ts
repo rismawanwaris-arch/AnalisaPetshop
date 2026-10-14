@@ -17,15 +17,22 @@ export async function ensureDefaults(branch: "BANDUNG" | "CIMAHI" = "BANDUNG") {
     },
   });
 
-  // 2. Default Targets (Petshop, Aksesoris, SP_VOUCHER)
+  // 2. Default Targets (DRYFOOD, WETFOOD, AKSESORIS)
   const defaultTargets = [
-    { scope: "PERKONTER" as const, category: "PETSHOP" as const, amount: 35000 },
+    { scope: "PERKONTER" as const, category: "DRYFOOD" as const, amount: 35000 },
+    { scope: "PERKONTER" as const, category: "WETFOOD" as const, amount: 35000 },
     { scope: "PERKONTER" as const, category: "AKSESORIS" as const, amount: 35000 },
-    { scope: "PERKONTER" as const, category: "SP_VOUCHER" as const, amount: 100000 },
-    { scope: "ALL" as const, category: "PETSHOP" as const, amount: 1190000 },
+    { scope: "ALL" as const, category: "DRYFOOD" as const, amount: 1190000 },
+    { scope: "ALL" as const, category: "WETFOOD" as const, amount: 1190000 },
     { scope: "ALL" as const, category: "AKSESORIS" as const, amount: 1400000 },
-    { scope: "ALL" as const, category: "SP_VOUCHER" as const, amount: 4000000 },
   ];
+
+  // Remove obsolete target categories (PETSHOP, SP_VOUCHER)
+  await prisma.target.deleteMany({
+    where: {
+      category: { in: ["PETSHOP", "SP_VOUCHER"] },
+    },
+  });
 
   for (const t of defaultTargets) {
     await prisma.target.upsert({
@@ -46,30 +53,29 @@ export async function ensureDefaults(branch: "BANDUNG" | "CIMAHI" = "BANDUNG") {
     });
   }
 
-  // 3. Item Group Mappings
+  // 3. Item Group Mappings (DRYFOOD, WETFOOD, AKSESORIS)
   const mappings = [
-    { itemGroup: "CAT ADULT DRY", category: "PETSHOP" as const },
-    { itemGroup: "CAT KITTEN DRY", category: "PETSHOP" as const },
-    { itemGroup: "MAKANAN BASAH", category: "PETSHOP" as const },
-    { itemGroup: "DOG ADULT DRY", category: "PETSHOP" as const },
-    { itemGroup: "MAKANAN DOG", category: "PETSHOP" as const },
-    { itemGroup: "MOTHER AND KITTEN", category: "PETSHOP" as const },
-    { itemGroup: "PASIR", category: "PETSHOP" as const },
-    { itemGroup: "OBAT", category: "PETSHOP" as const },
-    { itemGroup: "SNACK KUCING", category: "PETSHOP" as const },
-    { itemGroup: "AKSESORIS", category: "AKSESORIS" as const },
-    { itemGroup: "SP/VOUCHER", category: "SP_VOUCHER" as const },
+    { itemGroup: "CAT ADULT DRY", category: "DRYFOOD" },
+    { itemGroup: "CAT KITTEN DRY", category: "DRYFOOD" },
+    { itemGroup: "DOG ADULT DRY", category: "DRYFOOD" },
+    { itemGroup: "MOTHER AND KITTEN", category: "DRYFOOD" },
+    { itemGroup: "MAKANAN BASAH", category: "WETFOOD" },
+    { itemGroup: "MAKANAN DOG", category: "WETFOOD" },
+    { itemGroup: "SNACK KUCING", category: "WETFOOD" },
+    { itemGroup: "AKSESORIS", category: "AKSESORIS" },
+    { itemGroup: "PASIR", category: "AKSESORIS" },
+    { itemGroup: "OBAT", category: "AKSESORIS" },
   ];
 
   for (const m of mappings) {
     await prisma.itemGroupMapping.upsert({
       where: { itemGroup: m.itemGroup },
-      update: {},
+      update: { category: m.category },
       create: { itemGroup: m.itemGroup, category: m.category, isDefault: true },
     });
     await prisma.pointGroupMapping.upsert({
       where: { itemGroup: m.itemGroup },
-      update: {},
+      update: { category: m.category },
       create: { itemGroup: m.itemGroup, category: m.category, isDefault: true },
     });
   }

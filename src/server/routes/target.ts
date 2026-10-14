@@ -22,8 +22,8 @@ router.get("/report", async (req: Request, res: Response) => {
     });
 
     const targetMap: Record<string, Record<string, number>> = {
-      perkonter: { PETSHOP: 35000, AKSESORIS: 35000, SP_VOUCHER: 100000 },
-      all: { PETSHOP: 1190000, AKSESORIS: 1400000, SP_VOUCHER: 4000000 },
+      perkonter: { DRYFOOD: 35000, WETFOOD: 35000, AKSESORIS: 35000 },
+      all: { DRYFOOD: 1190000, WETFOOD: 1190000, AKSESORIS: 1400000 },
     };
 
     targets.forEach((t) => {
@@ -50,13 +50,13 @@ router.get("/report", async (req: Request, res: Response) => {
       },
     });
 
-    // 4. Aggregate by Outlet and Category
+    // 4. Aggregate by Outlet and Category (DRYFOOD, WETFOOD, AKSESORIS)
     const outletRowMap = new Map<number, {
       outletId: number;
       outlet: string;
-      petshop: { sales: number; qtyOrTrx: number };
+      dryfood: { sales: number; qtyOrTrx: number };
+      wetfood: { sales: number; qtyOrTrx: number };
       aksesoris: { sales: number; qtyOrTrx: number };
-      spVoucher: { sales: number; qtyOrTrx: number };
       totalSales: number;
       totalQtyTrx: number;
     }>();
@@ -68,9 +68,9 @@ router.get("/report", async (req: Request, res: Response) => {
         outletRowMap.set(s.outletId, {
           outletId: s.outletId,
           outlet: s.outlet.name,
-          petshop: { sales: 0, qtyOrTrx: 0 },
+          dryfood: { sales: 0, qtyOrTrx: 0 },
+          wetfood: { sales: 0, qtyOrTrx: 0 },
           aksesoris: { sales: 0, qtyOrTrx: 0 },
-          spVoucher: { sales: 0, qtyOrTrx: 0 },
           totalSales: 0,
           totalQtyTrx: 0,
         });
@@ -83,15 +83,28 @@ router.get("/report", async (req: Request, res: Response) => {
       const laba = Number(s.labaRugi);
       const qty = Number(s.qty);
 
-      if (cat === "PETSHOP") {
-        row.petshop.sales += laba;
-        row.petshop.qtyOrTrx += qty;
-      } else if (cat === "AKSESORIS") {
+      const normalizedCat = (cat || "").trim().toUpperCase();
+
+      if (normalizedCat === "DRYFOOD" || normalizedCat === "DRY FOOD" || normalizedCat === "DRY_FOOD") {
+        row.dryfood.sales += laba;
+        row.dryfood.qtyOrTrx += qty;
+      } else if (normalizedCat === "WETFOOD" || normalizedCat === "WET FOOD" || normalizedCat === "WET_FOOD") {
+        row.wetfood.sales += laba;
+        row.wetfood.qtyOrTrx += qty;
+      } else if (normalizedCat === "AKSESORIS" || normalizedCat === "ACCESSORIES") {
         row.aksesoris.sales += laba;
         row.aksesoris.qtyOrTrx += qty;
-      } else if (cat === "SP_VOUCHER") {
-        row.spVoucher.sales += laba;
-        row.spVoucher.qtyOrTrx += qty;
+      } else if (normalizedCat === "PETSHOP") {
+        if (groupName.includes("DRY")) {
+          row.dryfood.sales += laba;
+          row.dryfood.qtyOrTrx += qty;
+        } else if (groupName.includes("BASAH") || groupName.includes("WET") || groupName.includes("SNACK") || groupName.includes("CAN")) {
+          row.wetfood.sales += laba;
+          row.wetfood.qtyOrTrx += qty;
+        } else {
+          row.aksesoris.sales += laba;
+          row.aksesoris.qtyOrTrx += qty;
+        }
       } else {
         if (groupName) unmappedSet.add(groupName);
       }
@@ -107,14 +120,14 @@ router.get("/report", async (req: Request, res: Response) => {
       unmappedItemGroups: Array.from(unmappedSet),
       targets: {
         perkonter: {
-          PETSHOP: targetMap.perkonter.PETSHOP * dayCount,
-          AKSESORIS: targetMap.perkonter.AKSESORIS * dayCount,
-          SP_VOUCHER: targetMap.perkonter.SP_VOUCHER * dayCount,
+          DRYFOOD: (targetMap.perkonter.DRYFOOD || 0) * dayCount,
+          WETFOOD: (targetMap.perkonter.WETFOOD || 0) * dayCount,
+          AKSESORIS: (targetMap.perkonter.AKSESORIS || 0) * dayCount,
         },
         all: {
-          PETSHOP: targetMap.all.PETSHOP * dayCount,
-          AKSESORIS: targetMap.all.AKSESORIS * dayCount,
-          SP_VOUCHER: targetMap.all.SP_VOUCHER * dayCount,
+          DRYFOOD: (targetMap.all.DRYFOOD || 0) * dayCount,
+          WETFOOD: (targetMap.all.WETFOOD || 0) * dayCount,
+          AKSESORIS: (targetMap.all.AKSESORIS || 0) * dayCount,
         },
       },
       dailyTargets: targetMap,
