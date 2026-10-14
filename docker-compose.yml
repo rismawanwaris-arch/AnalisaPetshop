@@ -7,7 +7,7 @@ services:
       - "${PORT:-8090}:8090"
     environment:
       - PORT=8090
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/analisa_petshop?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/analisa_petshop?schema=public&connection_limit=15&pool_timeout=20
       - SESSION_SECRET=change-this-secret-to-a-secure-random-string
       - MASTER_PASSWORD=admin
       - ADMIN_PASSWORD=admin

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -43,6 +43,22 @@ interface NavSection {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout, isMaster } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Prefetch settings in the background when user is master so /settings opens immediately
+  React.useEffect(() => {
+    if (isMaster) {
+      queryClient.prefetchQuery({
+        queryKey: ["settings-full"],
+        queryFn: async () => {
+          const res = await fetch("/api/settings");
+          if (!res.ok) return null;
+          return res.json();
+        },
+        staleTime: 10 * 60 * 1000,
+      });
+    }
+  }, [isMaster, queryClient]);
 
   const { data: menuData } = useQuery({
     queryKey: ["menu-visibility"],
@@ -145,6 +161,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <Link
                         key={item.name}
                         to={item.href}
+                        onMouseEnter={() => {
+                          if (item.href === "/settings" && isMaster) {
+                            queryClient.prefetchQuery({
+                              queryKey: ["settings-full"],
+                              queryFn: async () => {
+                                const res = await fetch("/api/settings");
+                                if (!res.ok) return null;
+                                return res.json();
+                              },
+                              staleTime: 10 * 60 * 1000,
+                            });
+                          }
+                        }}
                         className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                           isActive
                             ? "bg-emerald-600 text-white shadow-xs shadow-emerald-900/50"

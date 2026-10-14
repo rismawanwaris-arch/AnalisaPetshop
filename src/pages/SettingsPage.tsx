@@ -53,6 +53,9 @@ export const SettingsPage: React.FC = () => {
       if (!res.ok) throw new Error("Gagal mengambil data pengaturan");
       return res.json();
     },
+    staleTime: 10 * 60 * 1000, // 10 minutes cache - opens instantly without reloading
+    gcTime: 30 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 
   // State forms
