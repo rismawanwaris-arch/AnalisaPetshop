@@ -11,7 +11,7 @@
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "docker:build": "docker build -t analisa-petshop:latest .",
-    "docker:run": "docker run -p 3000:3000 analisa-petshop:latest"
+    "docker:run": "docker run -p 8090:8090 analisa-petshop:latest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^6.4.1",

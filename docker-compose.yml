@@ -4,9 +4,9 @@ services:
     container_name: analisa-petshop
     restart: always
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-8090}:8090"
     environment:
-      - PORT=3000
+      - PORT=8090
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/analisa_petshop?schema=public
       - SESSION_SECRET=change-this-secret-to-a-secure-random-string
       - MASTER_PASSWORD=admin

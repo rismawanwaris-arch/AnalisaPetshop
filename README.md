@@ -41,6 +41,6 @@ docker compose up -d --build
 ### 2. Akses Aplikasi
 Buka browser:
 ```
-http://localhost:3000
+http://<IP-SERVER>:<PORT>
 ```
-*(atau sesuaikan port dan host sesuai konfigurasi server Anda)*
+*(atau `http://localhost:<PORT>` jika dijalankan di mesin lokal)*
