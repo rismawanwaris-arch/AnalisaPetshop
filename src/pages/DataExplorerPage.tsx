@@ -17,6 +17,7 @@ export const DataExplorerPage: React.FC = () => {
 
   const { data, isLoading } = useQuery({
     queryKey: ["data-explorer", page, search, typeFilter, fromDate, toDate],
+    enabled: isMaster,
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: "50" });
       if (search) params.append("search", search);
@@ -95,15 +96,34 @@ export const DataExplorerPage: React.FC = () => {
     }
   };
 
+  if (!isMaster) {
+    return (
+      <div className="bg-white p-8 rounded-2xl border border-rose-200 text-center space-y-3 shadow-xs">
+        <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <h3 className="text-base font-bold text-slate-800">Akses Ditolak: Khusus Tingkat Master</h3>
+        <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+          Fitur <strong>Analisa Data</strong> hanya dapat diakses oleh akun tingkat <strong>Master</strong>. Akun Admin tidak memiliki hak akses untuk melihat maupun memanipulasi data mentah transaksi.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <Search className="w-5 h-5 text-emerald-600" />
-            Analisa Data
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <Search className="w-5 h-5 text-emerald-600" />
+              Analisa Data
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+              Khusus Master
+            </span>
+          </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Audit mendalam baris mentah penjualan dan retur dari file import POS
           </p>

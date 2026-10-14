@@ -96,7 +96,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       items: [
         { name: "Master Item", href: "/items", icon: Package },
         { name: "Import & Batch", href: "/import", icon: Upload },
-        { name: "Analisa Data", href: "/analisa-data", icon: Search },
+        { name: "Analisa Data", href: "/analisa-data", icon: Search, badge: "Master", masterOnly: true },
         { name: "Log Aktivitas", href: "/log", icon: FileText },
         { name: "Pengaturan", href: "/settings", icon: Settings, badge: "Master", masterOnly: true },
       ],
@@ -104,14 +104,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   // Filter items:
-  // 1. Pengaturan is ONLY visible for master role.
+  // 1. Pengaturan & Analisa Data are ONLY visible for master role.
   // 2. Other items respect hiddenMenuItems.
   const visibleSections = sections
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
         if (item.masterOnly && !isMaster) return false;
-        if (item.href === "/settings") return isMaster;
+        if (item.href === "/settings" || item.href === "/analisa-data") return isMaster;
         return !hiddenMenuItems.includes(item.href);
       }),
     }))

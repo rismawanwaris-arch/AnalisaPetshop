@@ -998,9 +998,9 @@ export const SettingsPage: React.FC = () => {
                     { name: "Daftar Transaksi", href: "/transactions", section: "Dimensi Analisis" },
                     { name: "Master Item", href: "/items", section: "Manajemen Data & Sistem" },
                     { name: "Import & Batch", href: "/import", section: "Manajemen Data & Sistem" },
-                    { name: "Analisa Data", href: "/analisa-data", section: "Manajemen Data & Sistem" },
+                    { name: "Analisa Data", href: "/analisa-data", section: "Manajemen Data & Sistem", badge: "Khusus Master" },
                     { name: "Log Aktivitas", href: "/log", section: "Manajemen Data & Sistem" },
-                  ].map((m) => {
+                  ].map((m: any) => {
                     const isHidden = (data?.settings?.hiddenMenuItems || []).includes(m.href);
                     return (
                       <div
@@ -1010,9 +1010,16 @@ export const SettingsPage: React.FC = () => {
                         }`}
                       >
                         <div>
-                          <span className={`font-bold block ${isHidden ? "text-slate-500 line-through" : "text-slate-900"}`}>
-                            {m.name}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-bold block ${isHidden ? "text-slate-500 line-through" : "text-slate-900"}`}>
+                              {m.name}
+                            </span>
+                            {m.badge && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                {m.badge}
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[10px] text-slate-400 font-medium">Bagian: {m.section}</span>
                         </div>
 

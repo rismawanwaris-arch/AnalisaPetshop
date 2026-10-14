@@ -4,6 +4,9 @@ import { requireAuth, requireMaster } from "../middleware.js";
 
 const router = Router();
 
+// Hanya akun tingkat MASTER yang diizinkan mengakses data mentah & analisa data explorer
+router.use(requireAuth, requireMaster);
+
 // GET /api/data-explorer - Raw sale exploration (Sales & Returns)
 router.get("/", async (req: Request, res: Response) => {
   try {

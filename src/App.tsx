@@ -65,7 +65,10 @@ const ProtectedApp: React.FC = () => {
           {/* Manajemen Data & Sistem */}
           <Route path="/import" element={<ImportPage />} />
           <Route path="/imports" element={<ImportPage />} />
-          <Route path="/analisa-data" element={<DataExplorerPage />} />
+          <Route
+            path="/analisa-data"
+            element={isMaster ? <DataExplorerPage /> : <Navigate to="/" replace />}
+          />
           <Route path="/log" element={<ActivityLogPage />} />
 
           {/* Pengaturan: Hanya Tingkat Master */}
