@@ -1,8 +1,32 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { hashPassword } from "../../lib/password.js";
+import { requireAuth, requireMaster } from "../middleware.js";
 
 const router = Router();
+
+// ================= PREFERENSI TAMPILAN (BISA DIAKSES OLEH SEMUA USER TERAUTENTIKASI) =================
+router.get("/menu-visibility", async (req: Request, res: Response) => {
+  try {
+    const s = await prisma.pointSettings.findUnique({ where: { id: 1 } });
+    res.json({ hiddenMenuItems: s?.hiddenMenuItems || [] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/chart-metrics", async (req: Request, res: Response) => {
+  try {
+    const s = await prisma.pointSettings.findUnique({ where: { id: 1 } });
+    res.json({ dashboardChartMetrics: s?.dashboardChartMetrics || ["laba"] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ================= SEMUA ENDPOINT PENGATURAN LAINNYA WAJIB LEVEL MASTER =================
+router.use(requireAuth);
+router.use(requireMaster);
 
 // GET /api/settings - Full settings data for all collapsible panels
 router.get("/", async (req: Request, res: Response) => {
@@ -398,15 +422,6 @@ router.put("/employees/:id/visibility", async (req: Request, res: Response) => {
 });
 
 // ================= VISIBILITAS MENU SIDEBAR =================
-router.get("/menu-visibility", async (req: Request, res: Response) => {
-  try {
-    const s = await prisma.pointSettings.findUnique({ where: { id: 1 } });
-    res.json({ hiddenMenuItems: s?.hiddenMenuItems || [] });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 router.put("/menu-visibility", async (req: Request, res: Response) => {
   try {
     const { hiddenMenuItems } = req.body;
@@ -425,15 +440,6 @@ router.put("/menu-visibility", async (req: Request, res: Response) => {
 });
 
 // ================= PENGATURAN GRAFIK DASHBOARD =================
-router.get("/chart-metrics", async (req: Request, res: Response) => {
-  try {
-    const s = await prisma.pointSettings.findUnique({ where: { id: 1 } });
-    res.json({ dashboardChartMetrics: s?.dashboardChartMetrics || ["laba"] });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 router.put("/chart-metrics", async (req: Request, res: Response) => {
   try {
     const { dashboardChartMetrics } = req.body;

@@ -16,7 +16,10 @@ import {
   FileText,
   Settings,
   Building2,
+  LogOut,
+  Shield,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext.js";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,6 +30,7 @@ interface NavItem {
   href: string;
   icon: any;
   badge?: string;
+  masterOnly?: boolean;
 }
 
 interface NavSection {
@@ -36,6 +40,7 @@ interface NavSection {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
+  const { user, logout, isMaster } = useAuth();
 
   const { data: menuData } = useQuery({
     queryKey: ["menu-visibility"],
@@ -48,10 +53,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const hiddenMenuItems: string[] = menuData?.hiddenMenuItems || [];
 
-  // Navigation EXACTLY matching blueprint structure:
-  // 1. Cabang Bandung (Utama)
-  // 2. Dimensi Analisis (Item, Kategori, Outlet, Pegawai, Daftar Transaksi)
-  // 3. Manajemen Data & Sistem (Import, Analisa Data, Log, Pengaturan)
+  // Navigation structure
   const sections: NavSection[] = [
     {
       title: "Cabang Bandung",
@@ -78,18 +80,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         { name: "Import & Batch", href: "/import", icon: Upload },
         { name: "Analisa Data", href: "/analisa-data", icon: Search },
         { name: "Log Aktivitas", href: "/log", icon: FileText },
-        { name: "Pengaturan", href: "/settings", icon: Settings, badge: "M" },
+        { name: "Pengaturan", href: "/settings", icon: Settings, badge: "Master", masterOnly: true },
       ],
     },
   ];
 
-  // Filter items based on hiddenMenuItems (Pengaturan /settings is never hidden)
+  // Filter items:
+  // 1. Pengaturan is ONLY visible for master role.
+  // 2. Other items respect hiddenMenuItems.
   const visibleSections = sections
     .map((section) => ({
       ...section,
-      items: section.items.filter(
-        (item) => item.href === "/settings" || !hiddenMenuItems.includes(item.href)
-      ),
+      items: section.items.filter((item) => {
+        if (item.masterOnly && !isMaster) return false;
+        if (item.href === "/settings") return isMaster;
+        return !hiddenMenuItems.includes(item.href);
+      }),
     }))
     .filter((section) => section.items.length > 0);
 
@@ -126,7 +132,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     const isActive =
                       item.href === "/"
                         ? location.pathname === "/"
-                        : location.pathname === item.href || (item.href !== "/" && location.pathname.startsWith(item.href) && (item.href !== "/items" || location.pathname === "/items"));
+                        : location.pathname === item.href ||
+                          (item.href !== "/" &&
+                            location.pathname.startsWith(item.href) &&
+                            (item.href !== "/items" || location.pathname === "/items"));
 
                     return (
                       <Link
@@ -144,8 +153,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         </div>
                         {item.badge && (
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${
-                              item.badge === "M"
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${
+                              item.masterOnly
                                 ? "bg-amber-400/20 text-amber-300 border border-amber-400/30"
                                 : isActive
                                 ? "bg-emerald-700/80 text-emerald-100"
@@ -164,17 +173,35 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </nav>
         </div>
 
-        {/* User & Environment Footer */}
-        <div className="p-3.5 border-t border-slate-800 bg-slate-950/40 text-xs text-slate-400 flex-shrink-0">
-          <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-between">
-            <div className="min-w-0">
-              <span className="text-[10px] text-slate-400 uppercase font-bold block">Status Server</span>
-              <span className="text-white font-medium text-xs truncate block">Lokal • Port 3000</span>
+        {/* User Profile & Role Footer in Sidebar */}
+        <div className="p-3 border-t border-slate-800/80 bg-slate-950/60 text-xs text-slate-400 flex-shrink-0">
+          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                  isMaster
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                }`}
+              >
+                {isMaster ? "👑" : "🛡️"}
+              </div>
+              <div className="min-w-0">
+                <span className="text-white font-bold text-xs truncate block leading-tight">
+                  {user?.displayName || user?.username || "Pengguna"}
+                </span>
+                <span className="text-[10px] text-slate-400 capitalize block truncate">
+                  Level: <span className={isMaster ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>{user?.role || "Staff"}</span>
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live
-            </div>
+            <button
+              onClick={() => logout()}
+              title="Keluar / Logout"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/80 transition-colors cursor-pointer shrink-0"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </aside>
@@ -190,9 +217,29 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-medium">
+            <div className="hidden sm:flex items-center gap-2 text-xs bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-medium">
               <Building2 className="w-3.5 h-3.5 text-slate-500" />
               <span>Wilayah Bandung: Padasuka</span>
+            </div>
+
+            <div className="hidden sm:block h-4 w-px bg-slate-200"></div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="text-right hidden sm:block">
+                <span className="font-bold text-slate-800 block text-xs leading-none">
+                  {user?.displayName || user?.username}
+                </span>
+                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                  {isMaster ? "👑 Tingkat Master" : "🛡️ Tingkat Admin"}
+                </span>
+              </div>
+              <button
+                onClick={() => logout()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100/80 border border-red-200/60 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
             </div>
           </div>
         </header>

@@ -74,17 +74,42 @@ export async function ensureDefaults(branch: "BANDUNG" | "CIMAHI" = "BANDUNG") {
     });
   }
 
-  // 4. Default Admin User if not exists
-  const existingMaster = await prisma.user.findFirst({ where: { role: "master" } });
+  // 4. Default Accounts (Master & Admin levels)
+  const masterPassword = process.env.MASTER_PASSWORD || "admin";
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin";
+
+  // Ensure 'master' user
+  const existingMaster = await prisma.user.findUnique({ where: { username: "master" } });
   if (!existingMaster) {
     await prisma.user.create({
       data: {
-        username: "admin",
+        username: "master",
         displayName: "Master Admin",
-        passwordHash: hashPassword(process.env.MASTER_PASSWORD || "admin"),
+        passwordHash: hashPassword(masterPassword),
         role: "master",
         isActive: true,
       },
     });
   }
+
+  // Ensure 'admin' user
+  const existingAdmin = await prisma.user.findUnique({ where: { username: "admin" } });
+  if (!existingAdmin) {
+    await prisma.user.create({
+      data: {
+        username: "admin",
+        displayName: "Staff Admin",
+        passwordHash: hashPassword(adminPassword),
+        role: "admin",
+        isActive: true,
+      },
+    });
+  } else if (existingAdmin.role === "master") {
+    // If admin was previously set to master, adjust to admin level now that 'master' account exists
+    await prisma.user.update({
+      where: { username: "admin" },
+      data: { role: "admin", displayName: "Staff Admin" },
+    });
+  }
 }
+
