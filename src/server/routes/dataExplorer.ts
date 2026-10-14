@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../lib/prisma.js";
+import { requireAuth, requireMaster } from "../middleware.js";
 
 const router = Router();
 
@@ -73,6 +74,44 @@ router.get("/", async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/data-explorer - Bulk or single delete sales rows (Master only)
+router.delete("/", requireAuth, requireMaster, async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Daftar ID data yang akan dihapus tidak valid" });
+    }
+
+    const numericIds = ids.map((id) => Number(id)).filter((id) => !isNaN(id) && id > 0);
+    if (numericIds.length === 0) {
+      return res.status(400).json({ error: "Tidak ada ID data valid yang diberikan" });
+    }
+
+    const result = await prisma.sale.deleteMany({
+      where: { id: { in: numericIds } },
+    });
+
+    // Record in ActivityLog
+    const userActor = req.user ? `${req.user.role}:${req.user.username}` : "MASTER";
+    await prisma.activityLog.create({
+      data: {
+        role: userActor,
+        action: "DATA_EXPLORER_DELETE",
+        detail: `Menghapus ${result.count} baris transaksi penjualan dari Analisa Data`,
+        ip: (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || null,
+      },
+    });
+
+    res.json({
+      success: true,
+      count: result.count,
+      message: `Berhasil menghapus ${result.count} baris data transaksi.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal menghapus baris transaksi" });
   }
 });
 

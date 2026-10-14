@@ -657,6 +657,17 @@ router.post("/master-items", upload.single("file"), async (req: Request, res: Re
       upsertCount += chunk.length;
     }
 
+    // Log Activity
+    const userActor = req.user ? `${req.user.role}:${req.user.username}` : "SYSTEM";
+    await prisma.activityLog.create({
+      data: {
+        role: userActor,
+        action: "MASTER_ITEMS_UPLOAD_EXCEL",
+        detail: `Upload Master Item: ${upsertCount} barang disinkronkan dari file "${req.file.originalname}"`,
+        ip: (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || null,
+      },
+    });
+
     res.json({ success: true, count: upsertCount, total: items.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Gagal memproses master item" });

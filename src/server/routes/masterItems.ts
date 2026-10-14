@@ -1,7 +1,174 @@
 import { Router, Request, Response } from "express";
+import multer from "multer";
+import * as xlsx from "xlsx";
 import { prisma } from "../../lib/prisma.js";
+import { parseMasterItemsExcel } from "../../lib/parseMasterItems.js";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
+});
 
 const router = Router();
+
+// GET /api/master-items/template - Download Excel template for Master Items
+router.get("/template", async (req: Request, res: Response) => {
+  try {
+    const wb = xlsx.utils.book_new();
+    const sampleData = [
+      {
+        "Kode Item": "RC-FIT-32-400G",
+        "Nama Item": "ROYAL CANIN FIT 32 400G",
+        "Barcode": "3182550702157",
+        "Kategori / Grup": "CAT ADULT DRY",
+        "Satuan Dasar": "PCS",
+        "Satuan Beli": "PCS",
+        "Harga Beli Terakhir": 65000,
+        "HPP Rata-rata": 65000,
+        "Harga Retail (0)": 78000,
+        "Harga Agen (1)": 72000,
+        "Harga Online (2)": 79000,
+        "Harga Repack (3)": 0,
+        "Harga Outlet Cabang (5)": 70000,
+        "Status": "Aktif",
+      },
+      {
+        "Kode Item": "WHK-POUCH-JR-85G",
+        "Nama Item": "WHISKAS POUCH JUNIOR TUNA 85G",
+        "Barcode": "93420625",
+        "Kategori / Grup": "MAKANAN BASAH",
+        "Satuan Dasar": "PCS",
+        "Satuan Beli": "DUS",
+        "Harga Beli Terakhir": 6500,
+        "HPP Rata-rata": 6500,
+        "Harga Retail (0)": 8500,
+        "Harga Agen (1)": 7500,
+        "Harga Online (2)": 9000,
+        "Harga Repack (3)": 0,
+        "Harga Outlet Cabang (5)": 7000,
+        "Status": "Aktif",
+      },
+      {
+        "Kode Item": "PASIR-BENTONITE-25L",
+        "Nama Item": "PASIR KUCING GUMPAL WANGI 25L",
+        "Barcode": "8997201830012",
+        "Kategori / Grup": "PASIR",
+        "Satuan Dasar": "SAK",
+        "Satuan Beli": "SAK",
+        "Harga Beli Terakhir": 95000,
+        "HPP Rata-rata": 95000,
+        "Harga Retail (0)": 125000,
+        "Harga Agen (1)": 110000,
+        "Harga Online (2)": 130000,
+        "Harga Repack (3)": 0,
+        "Harga Outlet Cabang (5)": 105000,
+        "Status": "Aktif",
+      },
+    ];
+
+    const ws = xlsx.utils.json_to_sheet(sampleData);
+    xlsx.utils.book_append_sheet(wb, ws, "Master Barang");
+    const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader("Content-Disposition", 'attachment; filename="template_master_item.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buf);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal membuat template master item" });
+  }
+});
+
+// POST /api/master-items/upload - Upload Excel to upsert Master Items with ActivityLog
+router.post("/upload", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "File Excel wajib diunggah" });
+
+    const items = parseMasterItemsExcel(req.file.buffer);
+    if (items.length === 0) {
+      return res.status(400).json({
+        error: "Tidak ada baris data barang yang valid. Pastikan file memiliki kolom 'Kode Item' dan 'Nama Item'.",
+      });
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    for (const it of items) {
+      const existing = await prisma.item.findUnique({
+        where: { code_branch: { code: it.code, branch: "BANDUNG" } },
+        select: { id: true },
+      });
+
+      if (existing) {
+        await prisma.item.update({
+          where: { id: existing.id },
+          data: {
+            name: it.name,
+            barcode: it.barcode,
+            itemGroup: it.itemGroup,
+            unitBase: it.unitBase,
+            unitPurchase: it.unitPurchase,
+            lastPurchasePrice: it.lastPurchasePrice,
+            avgHpp: it.avgHpp,
+            priceRetail: it.priceRetail,
+            priceAgent: it.priceAgent,
+            priceOnline: it.priceOnline,
+            priceRepack: it.priceRepack,
+            priceBranch: it.priceBranch,
+            marginRetail: it.marginRetail,
+            status: it.status,
+            isFromSalesImport: false,
+          },
+        });
+        updatedCount++;
+      } else {
+        await prisma.item.create({
+          data: {
+            code: it.code,
+            name: it.name,
+            barcode: it.barcode,
+            itemGroup: it.itemGroup,
+            unitBase: it.unitBase,
+            unitPurchase: it.unitPurchase,
+            lastPurchasePrice: it.lastPurchasePrice,
+            avgHpp: it.avgHpp,
+            priceRetail: it.priceRetail,
+            priceAgent: it.priceAgent,
+            priceOnline: it.priceOnline,
+            priceRepack: it.priceRepack,
+            priceBranch: it.priceBranch,
+            marginRetail: it.marginRetail,
+            status: it.status,
+            branch: "BANDUNG",
+            isFromSalesImport: false,
+          },
+        });
+        createdCount++;
+      }
+    }
+
+    // Record ActivityLog
+    const userActor = req.user ? `${req.user.role}:${req.user.username}` : "SYSTEM";
+    await prisma.activityLog.create({
+      data: {
+        role: userActor,
+        action: "MASTER_ITEMS_EXCEL_SYNC",
+        detail: `Impor/Update Master Item: ${items.length} barang disinkronkan (${createdCount} baru, ${updatedCount} diperbarui) dari file "${req.file.originalname}"`,
+        ip: (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || null,
+      },
+    });
+
+    res.json({
+      success: true,
+      count: items.length,
+      created: createdCount,
+      updated: updatedCount,
+      message: `Berhasil memproses ${items.length} barang (${createdCount} baru, ${updatedCount} diperbarui).`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal mengimpor file Excel master item" });
+  }
+});
 
 // GET /api/master-items - Query master items with search & filters
 router.get("/", async (req: Request, res: Response) => {

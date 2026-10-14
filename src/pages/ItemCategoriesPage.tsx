@@ -44,6 +44,15 @@ export const ItemCategoriesPage: React.FC = () => {
     }
   };
 
+  const totals = sortedItems.reduce(
+    (acc: any, it: any) => ({
+      qty: acc.qty + (Number(it.qty) || 0),
+      omzet: acc.omzet + (Number(it.omzet) || 0),
+      laba: acc.laba + (Number(it.laba) || 0),
+    }),
+    { qty: 0, omzet: 0, laba: 0 }
+  );
+
   return (
     <div className="space-y-5">
       {/* Page Title & Breadcrumb header */}
@@ -258,6 +267,24 @@ export const ItemCategoriesPage: React.FC = () => {
                   ))
                 )}
               </tbody>
+              {sortedItems.length > 0 && (
+                <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-xs">
+                  <tr>
+                    <td colSpan={3} className="py-3 px-4 text-slate-800">
+                      TOTAL ({sortedItems.length} Item)
+                    </td>
+                    <td className="py-3 px-4 text-right text-slate-900 whitespace-nowrap font-bold">
+                      {formatNumber(totals.qty)} pcs
+                    </td>
+                    <td className="py-3 px-4 text-right font-black text-blue-950 bg-blue-100/60 whitespace-nowrap">
+                      {formatRupiah(totals.omzet)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-emerald-700 whitespace-nowrap">
+                      {formatRupiah(totals.laba)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}

@@ -12,6 +12,10 @@ import {
   Layers,
   DollarSign,
   Tag,
+  Download,
+  Upload,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react";
 import { formatRupiah, formatNumber } from "../lib/format.js";
 
@@ -61,6 +65,33 @@ export const MasterItemsPage: React.FC = () => {
   const [editingItem, setEditingItem] = useState<MasterItemForm | null>(null);
   const [formData, setFormData] = useState<MasterItemForm>(initialForm);
   const [formError, setFormError] = useState("");
+
+  // Upload Excel State
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/master-items/upload", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal mengimpor file Excel");
+      return data;
+    },
+    onSuccess: (data) => {
+      setUploadStatus({ type: "success", text: data.message });
+      setUploadFile(null);
+      queryClient.invalidateQueries({ queryKey: ["master-items"] });
+    },
+    onError: (err: any) => {
+      setUploadStatus({ type: "error", text: err.message || "Gagal mengimpor file" });
+    },
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["master-items", page, search, selectedGroup],
@@ -165,13 +196,37 @@ export const MasterItemsPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          Tambah Barang Baru
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href="/api/master-items/template"
+            download="template_master_item.xlsx"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs transition-colors cursor-pointer shrink-0"
+            title="Download Template Format Excel Master Item"
+          >
+            <Download className="w-4 h-4 text-slate-500" />
+            Download Template
+          </a>
+
+          <button
+            onClick={() => {
+              setUploadFile(null);
+              setUploadStatus(null);
+              setIsUploadModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 shadow-2xs transition-colors cursor-pointer shrink-0"
+          >
+            <Upload className="w-4 h-4 text-blue-600" />
+            Impor / Update Excel
+          </button>
+
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Barang Baru
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -503,6 +558,119 @@ export const MasterItemsPage: React.FC = () => {
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50"
               >
                 {saveMutation.isPending ? "Menyimpan..." : "Simpan Barang"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Upload Excel */}
+      {isUploadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/60">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-slate-800 text-sm">
+                  Impor / Update Master Item via Excel
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsUploadModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="text-xs text-slate-600 space-y-1.5 bg-blue-50/60 p-3.5 rounded-xl border border-blue-200/60">
+                <p className="font-bold text-blue-900 flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-blue-600" />
+                  Sistem Pembaruan Otomatis:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-slate-600 text-[11px]">
+                  <li>Barang dengan <strong>Kode Item</strong> yang sudah ada akan <strong>otomatis di-update</strong> harga, HPP, barcode, dan namanya sesuai file Excel.</li>
+                  <li>Barang dengan Kode Item baru akan ditambahkan ke katalog.</li>
+                  <li>Aktivitas pembaruan akan otomatis dicatat di <strong>Log Aktivitas</strong> lengkap dengan jumlah baris dan waktu update.</li>
+                </ul>
+              </div>
+
+              {uploadStatus && (
+                <div
+                  className={`p-3 rounded-xl border flex items-center gap-2 text-xs ${
+                    uploadStatus.type === "success"
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                      : "bg-red-50 border-red-200 text-red-800"
+                  }`}
+                >
+                  {uploadStatus.type === "success" ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  )}
+                  <span>{uploadStatus.text}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Pilih File Excel (.xlsx / .xls)
+                </label>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setUploadFile(f);
+                    setUploadStatus(null);
+                  }}
+                  className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-xl p-2 bg-slate-50"
+                />
+                {uploadFile && (
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    File terpilih: <strong>{uploadFile.name}</strong> ({(uploadFile.size / 1024).toFixed(1)} KB)
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2 flex justify-between items-center text-xs">
+                <a
+                  href="/api/master-items/template"
+                  download="template_master_item.xlsx"
+                  className="text-blue-600 hover:text-blue-700 font-bold hover:underline inline-flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Unduh Template Excel
+                </a>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsUploadModalOpen(false)}
+                className="px-4 py-2 border border-slate-200 bg-white font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                disabled={!uploadFile || uploadMutation.isPending}
+                onClick={() => uploadFile && uploadMutation.mutate(uploadFile)}
+                className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {uploadMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Memproses Excel...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    <span>Upload & Sinkronkan</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

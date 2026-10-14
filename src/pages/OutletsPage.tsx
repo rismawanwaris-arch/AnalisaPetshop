@@ -81,6 +81,16 @@ export const OutletsPage: React.FC = () => {
     }
   };
 
+  const totals = sortedOutlets.reduce(
+    (acc: any, o: any) => ({
+      qty: acc.qty + (Number(o.totalQty) || 0),
+      omzet: acc.omzet + (Number(o.totalOmzet) || 0),
+      laba: acc.laba + (Number(o.totalLaba) || 0),
+      trx: acc.trx + (Number(o.totalTransaksi) || 0),
+    }),
+    { qty: 0, omzet: 0, laba: 0, trx: 0 }
+  );
+
   return (
     <div className="space-y-5">
       {/* Header & Breadcrumb matching screenshot */}
@@ -359,6 +369,27 @@ export const OutletsPage: React.FC = () => {
                   ))
                 )}
               </tbody>
+              {sortedOutlets.length > 0 && (
+                <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-xs">
+                  <tr>
+                    <td className="py-3 px-4 text-slate-800">
+                      TOTAL ({sortedOutlets.length} Outlet)
+                    </td>
+                    <td className="py-3 px-4 text-right text-slate-900 whitespace-nowrap">
+                      {formatNumber(totals.qty)} pcs
+                    </td>
+                    <td className="py-3 px-4 text-right font-black text-blue-950 bg-blue-100/60 whitespace-nowrap text-sm">
+                      {formatRupiah(totals.omzet)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
+                      {formatRupiah(totals.laba)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-semibold text-slate-700 whitespace-nowrap">
+                      {formatNumber(totals.trx)} struk
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}
