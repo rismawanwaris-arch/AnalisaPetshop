@@ -99,6 +99,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }))
     .filter((section) => section.items.length > 0);
 
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-50/75 flex flex-col md:flex-row text-slate-800">
       {/* Sidebar - Pinned height, scrollable menu */}
@@ -195,13 +197,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </span>
               </div>
             </div>
-            <button
-              onClick={() => logout()}
-              title="Keluar / Logout"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/80 transition-colors cursor-pointer shrink-0"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setIsPasswordModalOpen(true)}
+                title="Ganti Password Akun"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800/80 transition-colors cursor-pointer"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => logout()}
+                title="Keluar / Logout"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/80 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -224,8 +235,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             <div className="hidden sm:block h-4 w-px bg-slate-200"></div>
 
-            <div className="flex items-center gap-2.5">
-              <div className="text-right hidden sm:block">
+            <div className="flex items-center gap-2">
+              <div className="text-right hidden sm:block mr-1">
                 <span className="font-bold text-slate-800 block text-xs leading-none">
                   {user?.displayName || user?.username}
                 </span>
@@ -233,6 +244,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   {isMaster ? "👑 Tingkat Master" : "🛡️ Tingkat Admin"}
                 </span>
               </div>
+              <button
+                onClick={() => setIsPasswordModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
+                title="Ganti Password Akun Anda"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+                <span className="hidden sm:inline">Ganti Password</span>
+              </button>
               <button
                 onClick={() => logout()}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100/80 border border-red-200/60 transition-colors cursor-pointer"
@@ -247,6 +266,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Page Container */}
         <main className="flex-1 p-6 max-w-7xl w-full mx-auto">{children}</main>
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
     </div>
   );
 };

@@ -22,6 +22,7 @@ import {
   Download,
   Upload,
   BarChart3,
+  KeyRound,
 } from "lucide-react";
 import { formatRupiah, formatNumber } from "../lib/format.js";
 
@@ -550,19 +551,46 @@ export const SettingsPage: React.FC = () => {
                         <span className="font-bold text-slate-800 text-sm block">{u.displayName || u.username}</span>
                         <span className="text-[11px] text-slate-400">@{u.username} • Role: {u.role}</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${u.isActive ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
                           {u.isActive ? "Aktif" : "Non-Aktif"}
                         </span>
+                        <button
+                          title={`Ganti / Reset Password Akun @${u.username}`}
+                          onClick={async () => {
+                            const newPass = prompt(`Masukkan password baru untuk akun @${u.username}:`);
+                            if (!newPass) return;
+                            if (newPass.length < 4) {
+                              alert("Password minimal 4 karakter!");
+                              return;
+                            }
+                            const res = await fetch(`/api/settings/users/${u.id}`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ password: newPass }),
+                            });
+                            if (res.ok) {
+                              alert(`Password untuk @${u.username} berhasil diperbarui!`);
+                              queryClient.invalidateQueries({ queryKey: ["settings-full"] });
+                            } else {
+                              const err = await res.json();
+                              alert(err.error || "Gagal mengubah password");
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors"
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                        </button>
                         {u.role !== "master" && (
                           <button
+                            title={`Hapus akun @${u.username}`}
                             onClick={async () => {
                               if (confirm(`Hapus akun @${u.username}?`)) {
                                 await fetch(`/api/settings/users/${u.id}`, { method: "DELETE" });
                                 queryClient.invalidateQueries({ queryKey: ["settings-full"] });
                               }
                             }}
-                            className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
