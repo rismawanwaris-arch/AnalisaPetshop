@@ -12,6 +12,201 @@ const upload = multer({
 
 const router = Router();
 
+// ======================== PREVIEW & VERIFICATION ROUTES ========================
+
+// POST /api/imports/preview/sales - Analyze sales Excel before upload
+router.post("/preview/sales", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "File Excel wajib diunggah" });
+
+    const { rows, errors } = parseSalesExcel(req.file.buffer);
+    if (rows.length === 0) {
+      return res.status(400).json({
+        error: "Tidak ada baris data penjualan yang dapat dibaca. Pastikan format kolom sesuai.",
+        details: errors,
+      });
+    }
+
+    const allDeterministicHashes = rows.map((r) => r.rowHash);
+    const allLegacyHashes = rows.map((r) => r.legacyHash).filter(Boolean) as string[];
+    const allLookupHashes = Array.from(new Set([...allDeterministicHashes, ...allLegacyHashes]));
+
+    const existingSales = await prisma.sale.findMany({
+      where: { rowHash: { in: allLookupHashes } },
+      select: { rowHash: true },
+    });
+    const existingHashSet = new Set(existingSales.map((s) => s.rowHash));
+
+    let newCount = 0;
+    let duplicateCount = 0;
+
+    for (const r of rows) {
+      if (existingHashSet.has(r.rowHash) || (r.legacyHash && existingHashSet.has(r.legacyHash))) {
+        duplicateCount++;
+      } else {
+        newCount++;
+      }
+    }
+
+    const sampleRows = rows.slice(0, 12).map((r) => {
+      const isDuplicate = existingHashSet.has(r.rowHash) || (!!r.legacyHash && existingHashSet.has(r.legacyHash));
+      return {
+        noTransaksi: r.noTransaksi,
+        tanggal: r.tanggal,
+        jamBuat: r.jamBuat,
+        namaItem: r.namaItem,
+        kodeItem: r.kodeItem,
+        qty: r.qty,
+        subtotal: r.subtotal,
+        cabang: r.cabang,
+        isDuplicate,
+      };
+    });
+
+    const validTimestamps = rows.map((r) => r.tanggal.getTime()).filter((t) => !isNaN(t));
+    const periodStart = validTimestamps.length > 0 ? new Date(Math.min(...validTimestamps)) : null;
+    const periodEnd = validTimestamps.length > 0 ? new Date(Math.max(...validTimestamps)) : null;
+    const uniqueTransactions = new Set(rows.map((r) => r.noTransaksi)).size;
+
+    res.json({
+      type: "SALES",
+      filename: req.file.originalname,
+      fileSize: req.file.size,
+      totalRows: rows.length,
+      newCount,
+      duplicateCount,
+      uniqueTransactions,
+      periodStart,
+      periodEnd,
+      sampleRows,
+      errors: errors.slice(0, 5),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal menganalisis data penjualan" });
+  }
+});
+
+// POST /api/imports/preview/purchases - Analyze purchase invoices before upload
+router.post("/preview/purchases", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "File Excel wajib diunggah" });
+
+    const { invoices, errors } = parsePurchaseExcel(req.file.buffer);
+    if (invoices.length === 0) {
+      return res.status(400).json({
+        error: "Tidak ada faktur pembelian yang dapat dibaca. Pastikan format kolom sesuai.",
+        details: errors,
+      });
+    }
+
+    const invoiceNumbers = invoices.map((inv) => inv.noFaktur);
+    const existingInvoices = await prisma.purchaseInvoice.findMany({
+      where: { noFaktur: { in: invoiceNumbers } },
+      select: { noFaktur: true },
+    });
+    const existingInvSet = new Set(existingInvoices.map((i) => i.noFaktur));
+
+    let newCount = 0;
+    let duplicateCount = 0;
+    let totalItems = 0;
+
+    for (const inv of invoices) {
+      totalItems += inv.items.length;
+      if (existingInvSet.has(inv.noFaktur)) {
+        duplicateCount++;
+      } else {
+        newCount++;
+      }
+    }
+
+    const validTimestamps = invoices.map((r) => r.tanggal.getTime()).filter((t) => !isNaN(t));
+    const periodStart = validTimestamps.length > 0 ? new Date(Math.min(...validTimestamps)) : null;
+    const periodEnd = validTimestamps.length > 0 ? new Date(Math.max(...validTimestamps)) : null;
+
+    const sampleRows = invoices.slice(0, 12).map((inv) => ({
+      noFaktur: inv.noFaktur,
+      tanggal: inv.tanggal,
+      vendor: inv.vendor,
+      cabang: inv.cabang,
+      total: inv.total,
+      itemCount: inv.items.length,
+      isDuplicate: existingInvSet.has(inv.noFaktur),
+    }));
+
+    res.json({
+      type: "PURCHASES",
+      filename: req.file.originalname,
+      fileSize: req.file.size,
+      totalRows: invoices.length,
+      totalItems,
+      newCount,
+      duplicateCount,
+      periodStart,
+      periodEnd,
+      sampleRows,
+      errors: errors.slice(0, 5),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal menganalisis data pembelian" });
+  }
+});
+
+// POST /api/imports/preview/master-items - Analyze master items before upload
+router.post("/preview/master-items", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "File Excel wajib diunggah" });
+
+    const items = parseMasterItemsExcel(req.file.buffer);
+    if (items.length === 0) {
+      return res.status(400).json({
+        error: "Tidak ada data barang yang valid. Pastikan kolom 'Kode Item' dan 'Nama Item' terisi.",
+      });
+    }
+
+    const codes = items.map((i) => i.code);
+    const existingItems = await prisma.item.findMany({
+      where: { code: { in: codes }, branch: "BANDUNG" },
+      select: { code: true },
+    });
+    const existingCodeSet = new Set(existingItems.map((i) => i.code));
+
+    let newCount = 0;
+    let duplicateCount = 0;
+
+    for (const it of items) {
+      if (existingCodeSet.has(it.code)) {
+        duplicateCount++;
+      } else {
+        newCount++;
+      }
+    }
+
+    const sampleRows = items.slice(0, 12).map((it) => ({
+      code: it.code,
+      name: it.name,
+      itemGroup: it.itemGroup,
+      priceRetail: it.priceRetail,
+      lastPurchasePrice: it.lastPurchasePrice,
+      isDuplicate: existingCodeSet.has(it.code),
+    }));
+
+    res.json({
+      type: "MASTER_ITEMS",
+      filename: req.file.originalname,
+      fileSize: req.file.size,
+      totalRows: items.length,
+      newCount,
+      duplicateCount,
+      sampleRows,
+      errors: [],
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal menganalisis master item" });
+  }
+});
+
+// ======================== EXECUTE UPLOAD ROUTES ========================
+
 // POST /api/imports/sales - Upload sales Excel (High Performance Batch Insert)
 router.post("/sales", upload.single("file"), async (req: Request, res: Response) => {
   let batchId: number | null = null;

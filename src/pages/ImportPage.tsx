@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, History, Trash2, Info, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, History, Trash2, Info, Loader2, Search, ShieldCheck } from "lucide-react";
 import { formatNumber, formatDateTime } from "../lib/format.js";
+import { ImportPreviewModal, PreviewData } from "../components/ImportPreviewModal.js";
 
 export const ImportPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -9,6 +10,11 @@ export const ImportPage: React.FC = () => {
   const [purchaseFile, setPurchaseFile] = useState<File | null>(null);
   const [masterFile, setMasterFile] = useState<File | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Pre-upload preview modal state
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<{ endpoint: string; file: File } | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Fetch Import Batches History with auto-refresh when processing
   const { data: batches, isLoading } = useQuery({
@@ -24,6 +30,29 @@ export const ImportPage: React.FC = () => {
         return 2000;
       }
       return false;
+    },
+  });
+
+  // Pre-upload preview mutation (analyzes file against DB before inserting)
+  const previewMutation = useMutation({
+    mutationFn: async ({ endpoint, file }: { endpoint: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/imports/preview/${endpoint}`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menganalisis file Excel");
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      setPreviewData(data);
+      setPendingUpload(variables);
+      setIsPreviewOpen(true);
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: "error", text: err.message || "Gagal menganalisis file Excel" });
     },
   });
 
@@ -64,6 +93,10 @@ export const ImportPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["master-items"] });
       queryClient.invalidateQueries({ queryKey: ["items"] });
+
+      setIsPreviewOpen(false);
+      setPreviewData(null);
+      setPendingUpload(null);
       setSalesFile(null);
       setPurchaseFile(null);
       setMasterFile(null);
@@ -152,17 +185,20 @@ export const ImportPage: React.FC = () => {
             </div>
           </div>
           <button
-            disabled={!salesFile || uploadMutation.isPending}
-            onClick={() => salesFile && uploadMutation.mutate({ endpoint: "sales", file: salesFile })}
+            disabled={!salesFile || previewMutation.isPending || uploadMutation.isPending}
+            onClick={() => salesFile && previewMutation.mutate({ endpoint: "sales", file: salesFile })}
             className="mt-5 w-full py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
           >
-            {uploadMutation.isPending ? (
+            {previewMutation.isPending && pendingUpload?.endpoint === "sales" ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Memproses Data...</span>
+                <span>Menganalisis Data...</span>
               </>
             ) : (
-              <span>Proses Data Penjualan</span>
+              <>
+                <Search className="w-3.5 h-3.5" />
+                <span>Pratinjau & Verifikasi Penjualan</span>
+              </>
             )}
           </button>
         </div>
@@ -187,17 +223,20 @@ export const ImportPage: React.FC = () => {
             </div>
           </div>
           <button
-            disabled={!purchaseFile || uploadMutation.isPending}
-            onClick={() => purchaseFile && uploadMutation.mutate({ endpoint: "purchases", file: purchaseFile })}
+            disabled={!purchaseFile || previewMutation.isPending || uploadMutation.isPending}
+            onClick={() => purchaseFile && previewMutation.mutate({ endpoint: "purchases", file: purchaseFile })}
             className="mt-5 w-full py-2.5 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
           >
-            {uploadMutation.isPending ? (
+            {previewMutation.isPending && pendingUpload?.endpoint === "purchases" ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Memproses Data...</span>
+                <span>Menganalisis Faktur...</span>
               </>
             ) : (
-              <span>Proses Data Pembelian</span>
+              <>
+                <Search className="w-3.5 h-3.5" />
+                <span>Pratinjau & Verifikasi Pembelian</span>
+              </>
             )}
           </button>
         </div>
@@ -222,17 +261,20 @@ export const ImportPage: React.FC = () => {
             </div>
           </div>
           <button
-            disabled={!masterFile || uploadMutation.isPending}
-            onClick={() => masterFile && uploadMutation.mutate({ endpoint: "master-items", file: masterFile })}
+            disabled={!masterFile || previewMutation.isPending || uploadMutation.isPending}
+            onClick={() => masterFile && previewMutation.mutate({ endpoint: "master-items", file: masterFile })}
             className="mt-5 w-full py-2.5 bg-purple-600 text-white font-bold text-xs rounded-xl hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
           >
-            {uploadMutation.isPending ? (
+            {previewMutation.isPending && pendingUpload?.endpoint === "master-items" ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Memproses Data...</span>
+                <span>Menganalisis Katalog...</span>
               </>
             ) : (
-              <span>Update Master Item</span>
+              <>
+                <Search className="w-3.5 h-3.5" />
+                <span>Pratinjau & Verifikasi Master</span>
+              </>
             )}
           </button>
         </div>
@@ -312,6 +354,23 @@ export const ImportPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Pre-upload Verification & Deduplication Modal */}
+      <ImportPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setPreviewData(null);
+          setPendingUpload(null);
+        }}
+        onConfirm={() => {
+          if (pendingUpload) {
+            uploadMutation.mutate(pendingUpload);
+          }
+        }}
+        previewData={previewData}
+        isLoadingConfirm={uploadMutation.isPending}
+      />
     </div>
   );
 };
