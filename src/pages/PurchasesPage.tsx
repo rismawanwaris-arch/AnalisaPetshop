@@ -24,7 +24,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { formatRupiah, formatNumber, formatDate, daysAgo } from "../lib/format.js";
-import { useDateRange } from "../context/DateRangeContext.js";
+import { useDateRange, getCurrentMonthRange, getLastMonthRange } from "../context/DateRangeContext.js";
 
 const PurchasesPageContent: React.FC = () => {
   const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null);
@@ -33,26 +33,24 @@ const PurchasesPageContent: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"top-items" | "invoices" | "vendors">("top-items");
   const [sortBy, setSortBy] = useState<"spend" | "qty">("spend");
-  const [datePreset, setDatePreset] = useState<"all" | "this-month" | "last-month">("all");
+  const [datePreset, setDatePreset] = useState<"all" | "this-month" | "last-month">("this-month");
 
   const { fromDate, toDate, setFromDate, setToDate } = useDateRange();
 
   // Date Preset Handler
   const handleDatePreset = (preset: "all" | "this-month" | "last-month") => {
     setDatePreset(preset);
-    const now = new Date();
     if (preset === "all") {
       setFromDate("");
       setToDate("");
     } else if (preset === "this-month") {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      setFromDate(start.toISOString().split("T")[0]);
-      setToDate(now.toISOString().split("T")[0]);
+      const range = getCurrentMonthRange();
+      setFromDate(range.from);
+      setToDate(range.to);
     } else if (preset === "last-month") {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0);
-      setFromDate(start.toISOString().split("T")[0]);
-      setToDate(end.toISOString().split("T")[0]);
+      const range = getLastMonthRange();
+      setFromDate(range.from);
+      setToDate(range.to);
     }
   };
 
