@@ -65,6 +65,13 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => onPreset("last-month")}
+            className="px-2 py-1 rounded-md bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer"
+          >
+            Bulan Lalu
+          </button>
+          <button
+            type="button"
             onClick={() => onPreset("all")}
             className="px-2 py-1 rounded-md bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer"
           >
