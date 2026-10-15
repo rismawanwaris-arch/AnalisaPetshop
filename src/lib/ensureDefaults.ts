@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.js";
 import { hashPassword } from "./password.js";
+import { defaultItemPoints } from "./defaultItemPoints.js";
 
 export async function ensureDefaults(branch: "BANDUNG" | "CIMAHI" = "BANDUNG") {
   // 1. PointSettings singleton
@@ -115,6 +116,45 @@ export async function ensureDefaults(branch: "BANDUNG" | "CIMAHI" = "BANDUNG") {
     await prisma.user.update({
       where: { username: "admin" },
       data: { role: "admin", displayName: "Staff Admin" },
+    });
+  }
+
+  // 5. Default Item Points (288 items)
+  const defaultStartDate = new Date("2026-01-01");
+  const existingPoints = await prisma.itemPoint.findMany();
+  const existingMap = new Map(existingPoints.map((p) => [p.pattern.toUpperCase(), p]));
+
+  const toCreate: Array<{ pattern: string; points: number; startDate: Date; isDefault: boolean }> = [];
+  const toUpdate: Array<{ id: number; points: number }> = [];
+
+  for (const item of defaultItemPoints) {
+    const found = existingMap.get(item.pattern.toUpperCase());
+    if (!found) {
+      toCreate.push({
+        pattern: item.pattern,
+        points: item.points,
+        startDate: defaultStartDate,
+        isDefault: true,
+      });
+    } else if (found.isDefault && found.points !== item.points) {
+      toUpdate.push({
+        id: found.id,
+        points: item.points,
+      });
+    }
+  }
+
+  if (toCreate.length > 0) {
+    await prisma.itemPoint.createMany({
+      data: toCreate,
+      skipDuplicates: true,
+    });
+  }
+
+  for (const u of toUpdate) {
+    await prisma.itemPoint.update({
+      where: { id: u.id },
+      data: { points: u.points },
     });
   }
 }
