@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
-import { Lock, User as UserIcon, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { Lock, User as UserIcon, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowRight, Loader2, Award } from "lucide-react";
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -136,8 +136,22 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
+          {/* Akses Publik Papan Poin (Tanpa Perlu Login) */}
+          <div className="mt-5">
+            <Link
+              to="/papan-poin"
+              className="w-full py-2.5 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-between transition-all cursor-pointer shadow-sm group"
+            >
+              <div className="flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span>Lihat Papan Poin Pegawai (Akses Publik)</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+
           {/* Role Level Information Box */}
-          <div className="mt-8 pt-6 border-t border-slate-800/80">
+          <div className="mt-6 pt-5 border-t border-slate-800/80">
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               Tingkatan Hak Akses Sistem:

@@ -8,6 +8,7 @@ import { PurchasesPage } from "./pages/PurchasesPage.js";
 import { SalesPage } from "./pages/SalesPage.js";
 import { TargetReportPage } from "./pages/TargetReportPage.js";
 import { PointsPage } from "./pages/PointsPage.js";
+import { PublicPointsPage } from "./pages/PublicPointsPage.js";
 import { MasterItemsPage } from "./pages/MasterItemsPage.js";
 import { ItemCategoriesPage } from "./pages/ItemCategoriesPage.js";
 import { OutletsPage } from "./pages/OutletsPage.js";
@@ -21,8 +22,8 @@ import { DateRangeProvider } from "./context/DateRangeContext.js";
 import { ThemeProvider } from "./context/ThemeContext.js";
 import { Loader2 } from "lucide-react";
 
-// Protected Route Component
-const ProtectedApp: React.FC = () => {
+// Main App Router with Public & Protected Routes
+const MainApp: React.FC = () => {
   const { user, isLoading, isMaster } = useAuth();
 
   if (isLoading) {
@@ -36,52 +37,63 @@ const ProtectedApp: React.FC = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    );
-  }
-
   return (
     <DateRangeProvider>
-      <Layout>
-        <Routes>
-          {/* Cabang Bandung */}
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/target" element={<TargetReportPage />} />
-          <Route path="/purchases" element={<PurchasesPage />} />
-          <Route path="/points" element={<PointsPage />} />
+      <Routes>
+        {/* Rute Publik: Papan Poin tanpa perlu login / akun */}
+        <Route path="/papan-poin" element={<PublicPointsPage />} />
 
-          {/* Dimensi Analisis */}
-          <Route path="/items" element={<MasterItemsPage />} />
-          <Route path="/items/categories" element={<ItemCategoriesPage />} />
-          <Route path="/outlets" element={<OutletsPage />} />
-          <Route path="/outlets/:id" element={<OutletDetailPage />} />
-          <Route path="/employees" element={<EmployeesPage />} />
-          <Route path="/transactions" element={<SalesPage />} />
-
-          {/* Manajemen Data & Sistem */}
-          <Route path="/import" element={<ImportPage />} />
-          <Route path="/imports" element={<ImportPage />} />
+        {/* Jika belum login */}
+        {!user ? (
+          <>
+            <Route path="/points" element={<PublicPointsPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </>
+        ) : (
+          /* Jika sudah login */
           <Route
-            path="/analisa-data"
-            element={isMaster ? <DataExplorerPage /> : <Navigate to="/" replace />}
-          />
-          <Route path="/log" element={<ActivityLogPage />} />
+            path="*"
+            element={
+              <Layout>
+                <Routes>
+                  {/* Cabang Bandung */}
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/target" element={<TargetReportPage />} />
+                  <Route path="/purchases" element={<PurchasesPage />} />
+                  <Route path="/points" element={<PointsPage />} />
 
-          {/* Pengaturan: Hanya Tingkat Master */}
-          <Route
-            path="/settings"
-            element={isMaster ? <SettingsPage /> : <Navigate to="/" replace />}
-          />
+                  {/* Dimensi Analisis */}
+                  <Route path="/items" element={<MasterItemsPage />} />
+                  <Route path="/items/categories" element={<ItemCategoriesPage />} />
+                  <Route path="/outlets" element={<OutletsPage />} />
+                  <Route path="/outlets/:id" element={<OutletDetailPage />} />
+                  <Route path="/employees" element={<EmployeesPage />} />
+                  <Route path="/transactions" element={<SalesPage />} />
 
-          <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
+                  {/* Manajemen Data & Sistem */}
+                  <Route path="/import" element={<ImportPage />} />
+                  <Route path="/imports" element={<ImportPage />} />
+                  <Route
+                    path="/analisa-data"
+                    element={isMaster ? <DataExplorerPage /> : <Navigate to="/" replace />}
+                  />
+                  <Route path="/log" element={<ActivityLogPage />} />
+
+                  {/* Pengaturan: Hanya Tingkat Master */}
+                  <Route
+                    path="/settings"
+                    element={isMaster ? <SettingsPage /> : <Navigate to="/" replace />}
+                  />
+
+                  <Route path="/login" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Layout>
+            }
+          />
+        )}
+      </Routes>
     </DateRangeProvider>
   );
 };
@@ -90,7 +102,7 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <ProtectedApp />
+        <MainApp />
       </AuthProvider>
     </ThemeProvider>
   );
