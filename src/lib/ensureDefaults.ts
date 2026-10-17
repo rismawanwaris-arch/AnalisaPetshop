@@ -157,5 +157,20 @@ export async function ensureDefaults(branch: "BANDUNG" | "CIMAHI" = "BANDUNG") {
       data: { points: u.points },
     });
   }
+
+  // 6. Clean up orphaned employees (employees without any sales transactions)
+  const orphanEmployees = await prisma.employee.findMany({
+    where: { sales: { none: {} } },
+    select: { id: true },
+  });
+  if (orphanEmployees.length > 0) {
+    const orphanIds = orphanEmployees.map((e) => e.id);
+    await prisma.pointsExclusion.deleteMany({
+      where: { employeeId: { in: orphanIds } },
+    });
+    await prisma.employee.deleteMany({
+      where: { id: { in: orphanIds } },
+    });
+  }
 }
 

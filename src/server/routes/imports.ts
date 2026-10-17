@@ -869,6 +869,22 @@ router.delete("/:id", async (req: Request, res: Response) => {
     await prisma.sale.deleteMany({ where: { importId: id } });
     await prisma.purchaseInvoice.deleteMany({ where: { importId: id } });
     await prisma.importBatch.delete({ where: { id } });
+
+    // Clean up orphan employees who have no sales left
+    const orphanEmployees = await prisma.employee.findMany({
+      where: { sales: { none: {} } },
+      select: { id: true },
+    });
+    if (orphanEmployees.length > 0) {
+      const orphanIds = orphanEmployees.map((e) => e.id);
+      await prisma.pointsExclusion.deleteMany({
+        where: { employeeId: { in: orphanIds } },
+      });
+      await prisma.employee.deleteMany({
+        where: { id: { in: orphanIds } },
+      });
+    }
+
     res.json({ success: true, message: "Batch import berhasil dihapus" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

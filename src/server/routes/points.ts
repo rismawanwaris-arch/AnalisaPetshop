@@ -115,6 +115,7 @@ router.get("/leaderboard", async (req: Request, res: Response) => {
 
     const rate = settings?.pointRupiahRate || 100;
     const leaderboard = Array.from(empPointMap.values())
+      .filter((e) => e.totalPoints > 0 || e.totalQty > 0)
       .map((e) => ({
         employeeId: e.employeeId,
         name: e.name,
@@ -123,7 +124,7 @@ router.get("/leaderboard", async (req: Request, res: Response) => {
         insentif: e.totalPoints * rate,
         itemBreakdown: Array.from(e.items.values()),
       }))
-      .sort((a, b) => b.totalPoints - a.totalPoints);
+      .sort((a, b) => b.totalPoints - a.totalPoints || b.totalQty - a.totalQty);
 
     res.json({
       leaderboard,

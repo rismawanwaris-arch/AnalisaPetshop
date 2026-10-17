@@ -63,7 +63,13 @@ router.get("/", async (req: Request, res: Response) => {
       prisma.pointSettings.findUnique({ where: { id: 1 } }),
       prisma.target.findMany({ orderBy: [{ branch: "asc" }, { scope: "asc" }, { category: "asc" }] }),
       prisma.outlet.findMany({ orderBy: { name: "asc" } }),
-      prisma.employee.findMany({ include: { excluded: true }, orderBy: { name: "asc" } }),
+      prisma.employee.findMany({
+        include: {
+          excluded: true,
+          _count: { select: { sales: true } },
+        },
+        orderBy: { name: "asc" },
+      }),
       prisma.itemGroupMapping.findMany({ orderBy: { itemGroup: "asc" } }),
       prisma.pointGroupMapping.findMany({ orderBy: { itemGroup: "asc" } }),
       prisma.itemPoint.findMany({ orderBy: { pattern: "asc" } }),
@@ -543,6 +549,50 @@ router.put("/employees/:id/visibility", async (req: Request, res: Response) => {
       data: { isHidden: Boolean(isHidden) },
     });
     res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Clean all orphan employees (employees with 0 sales)
+router.post("/employees/clean-orphans", async (req: Request, res: Response) => {
+  try {
+    const orphanEmployees = await prisma.employee.findMany({
+      where: { sales: { none: {} } },
+      select: { id: true },
+    });
+    const orphanIds = orphanEmployees.map((e) => e.id);
+
+    if (orphanIds.length > 0) {
+      await prisma.pointsExclusion.deleteMany({
+        where: { employeeId: { in: orphanIds } },
+      });
+      const deleteResult = await prisma.employee.deleteMany({
+        where: { id: { in: orphanIds } },
+      });
+      return res.json({ success: true, count: deleteResult.count });
+    }
+
+    res.json({ success: true, count: 0 });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a single employee
+router.delete("/employees/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const salesCount = await prisma.sale.count({ where: { employeeId: id } });
+    if (salesCount > 0) {
+      return res.status(400).json({
+        error: `Tidak dapat menghapus pegawai karena memiliki ${salesCount} data transaksi penjualan. Sembunyikan pegawai sebagai gantinya.`,
+      });
+    }
+
+    await prisma.pointsExclusion.deleteMany({ where: { employeeId: id } });
+    await prisma.employee.delete({ where: { id } });
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
