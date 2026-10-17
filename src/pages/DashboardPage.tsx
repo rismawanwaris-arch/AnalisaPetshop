@@ -23,12 +23,74 @@ import {
   Bar,
 } from "recharts";
 import { formatRupiah, formatNumber, formatDate } from "../lib/format.js";
-import { useDateRange } from "../context/DateRangeContext.js";
+import {
+  DatePreset,
+  getYesterdayYMD,
+  getLocalYMD,
+  getCycleRange,
+  getLastCycleRange,
+} from "../context/DateRangeContext.js";
 import { DateRangePicker } from "../components/DateRangePicker.js";
 
 export const DashboardPage: React.FC = () => {
   const [outletFilter, setOutletFilter] = useState<string>("");
-  const { fromDate, toDate, setFromDate, setToDate, setPreset } = useDateRange();
+  const now = new Date();
+  const yStr = getYesterdayYMD(now);
+
+  // Default dashboard menampilkan data tanggal kemarin
+  const [fromDate, setFromDate] = useState<string>(yStr);
+  const [toDate, setToDate] = useState<string>(yStr);
+
+  const handlePreset = (preset: DatePreset) => {
+    const n = new Date();
+    if (preset === "yesterday") {
+      const y = getYesterdayYMD(n);
+      setFromDate(y);
+      setToDate(y);
+    } else if (preset === "today") {
+      const t = getLocalYMD(n);
+      setFromDate(t);
+      setToDate(t);
+    } else if (preset === "last7") {
+      const y = new Date(n);
+      y.setDate(y.getDate() - 1);
+      const d = new Date(y);
+      d.setDate(d.getDate() - 6);
+      setFromDate(getLocalYMD(d));
+      setToDate(getLocalYMD(y));
+    } else if (preset === "this-month" || preset === "last30") {
+      const range = getCycleRange(n, true);
+      setFromDate(range.from);
+      setToDate(range.to);
+    } else if (preset === "last-month") {
+      const range = getLastCycleRange(n);
+      setFromDate(range.from);
+      setToDate(range.to);
+    } else if (preset === "all") {
+      setFromDate("");
+      setToDate("");
+    }
+  };
+
+  // Auto-detect jika database hanya berisi data lama (misal data demo/impor terdahulu)
+  React.useEffect(() => {
+    fetch("/api/imports/periods")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const maxDateStr = data.sales?.maxDate;
+        if (maxDateStr) {
+          const maxD = new Date(maxDateStr);
+          const currentCycle = getCycleRange(new Date(), true);
+          if (maxD < new Date(currentCycle.from)) {
+            const maxStr = maxDateStr.split("T")[0];
+            setFromDate((prev) => (prev === yStr ? maxStr : prev));
+            setToDate((prev) => (prev === yStr ? maxStr : prev));
+          }
+        }
+      })
+      .catch(() => {});
+  }, [yStr]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", outletFilter, fromDate, toDate],
@@ -91,7 +153,7 @@ export const DashboardPage: React.FC = () => {
             toDate={toDate}
             onFromChange={setFromDate}
             onToChange={setToDate}
-            onPreset={setPreset}
+            onPreset={handlePreset}
           />
 
           {/* Location Filter */}

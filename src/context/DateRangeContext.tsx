@@ -11,11 +11,21 @@ export const getLocalYMD = (d: Date = new Date()): string => {
 };
 
 /**
+ * Format tanggal kemarin lokal ke format YYYY-MM-DD
+ */
+export const getYesterdayYMD = (d: Date = new Date()): string => {
+  const y = new Date(d);
+  y.setDate(y.getDate() - 1);
+  return getLocalYMD(y);
+};
+
+/**
  * Menghitung periode bulanan Petshop dengan aturan cutoff: Tanggal 29 s/d Tanggal 28.
  * - Jika tanggal saat ini >= 29: Mulai tanggal 29 bulan ini s/d tanggal 28 bulan depan
  * - Jika tanggal saat ini < 29 (1 s/d 28): Mulai tanggal 29 bulan lalu s/d tanggal 28 bulan ini
+ * - capAtYesterday: Jika true, batas akhir range dibatasi sampai tanggal kemarin saja (karena data hari ini belum masuk)
  */
-export const getCycleRange = (d: Date = new Date()) => {
+export const getCycleRange = (d: Date = new Date(), capAtYesterday = true) => {
   const year = d.getFullYear();
   const month = d.getMonth();
   const date = d.getDate();
@@ -50,25 +60,41 @@ export const getCycleRange = (d: Date = new Date()) => {
   const startMonthStr = String(startMonth + 1).padStart(2, "0");
   const endMonthStr = String(endMonth + 1).padStart(2, "0");
 
+  const fromStr = `${startYear}-${startMonthStr}-${String(startDay).padStart(2, "0")}`;
+  const maxEndStr = `${endYear}-${endMonthStr}-${String(endDay).padStart(2, "0")}`;
+
+  let toStr = maxEndStr;
+  if (capAtYesterday) {
+    const yesterday = new Date(d);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalYMD(yesterday);
+
+    if (yesterdayStr < fromStr) {
+      toStr = fromStr;
+    } else if (yesterdayStr < maxEndStr) {
+      toStr = yesterdayStr;
+    }
+  }
+
   return {
-    from: `${startYear}-${startMonthStr}-${String(startDay).padStart(2, "0")}`,
-    to: `${endYear}-${endMonthStr}-${String(endDay).padStart(2, "0")}`,
+    from: fromStr,
+    to: toStr,
   };
 };
 
 /**
- * Menghitung periode siklus bulanan sebelumnya (29 s/d 28 bulan lalu)
+ * Menghitung periode siklus bulanan sebelumnya (29 s/d 28 bulan lalu, penuh)
  */
 export const getLastCycleRange = (d: Date = new Date()) => {
-  const current = getCycleRange(d);
+  const current = getCycleRange(d, false);
   const startDate = new Date(current.from);
   // Mundur 15 hari dari tanggal mulai siklus saat ini untuk masuk ke siklus sebelumnya
   const prevDate = new Date(startDate.getTime() - 15 * 24 * 60 * 60 * 1000);
-  return getCycleRange(prevDate);
+  return getCycleRange(prevDate, false);
 };
 
 // Alias untuk kompatibilitas kode yang sudah ada
-export const getCurrentMonthRange = (d: Date = new Date()) => getCycleRange(d);
+export const getCurrentMonthRange = (d: Date = new Date(), capAtYesterday = true) => getCycleRange(d, capAtYesterday);
 export const getLastMonthRange = (d: Date = new Date()) => getLastCycleRange(d);
 
 export type DatePreset = "today" | "yesterday" | "last7" | "last30" | "this-month" | "last-month" | "all";
@@ -127,19 +153,19 @@ export const DateRangeProvider: React.FC<{ children: ReactNode }> = ({ children 
       setFromDate(todayStr);
       setToDate(todayStr);
     } else if (preset === "yesterday") {
-      const y = new Date(now);
-      y.setDate(y.getDate() - 1);
-      const yStr = getLocalYMD(y);
+      const yStr = getYesterdayYMD(now);
       setFromDate(yStr);
       setToDate(yStr);
     } else if (preset === "last7") {
-      const d = new Date(now);
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      const d = new Date(y);
       d.setDate(d.getDate() - 6);
       setFromDate(getLocalYMD(d));
-      setToDate(getLocalYMD(now));
+      setToDate(getLocalYMD(y));
     } else if (preset === "last30" || preset === "this-month") {
-      // Periode Bulan Berjalan (Tanggal 29 s/d Tanggal 28)
-      const range = getCycleRange(now);
+      // Periode Bulan Berjalan (Tanggal 29 s/d Tanggal Kemarin)
+      const range = getCycleRange(now, true);
       setFromDate(range.from);
       setToDate(range.to);
     } else if (preset === "last-month") {
