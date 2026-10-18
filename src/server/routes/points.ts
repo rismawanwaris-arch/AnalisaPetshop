@@ -24,20 +24,40 @@ router.get("/leaderboard", async (req: Request, res: Response) => {
     ]);
 
     const excludedEmpSet = new Set(excludedEmployees.map((e) => e.employeeId));
-    const excludedPatternSet = new Set(exclusions.map((e) => e.pattern.toLowerCase()));
+    const excludedPatterns = exclusions.map((e) => e.pattern.trim().toLowerCase());
     const groupDefaultMap = new Map(groupDefaults.map((g) => [g.itemGroup.toUpperCase(), g.points]));
 
-    // 2. Fetch sales
+    // Pre-sort point rules: longest pattern first, then newest startDate first
+    const sortedRules = itemPoints
+      .map((ip) => ({
+        ...ip,
+        patternLower: ip.pattern.trim().toLowerCase(),
+      }))
+      .sort(
+        (a, b) =>
+          b.patternLower.length - a.patternLower.length ||
+          b.startDate.getTime() - a.startDate.getTime()
+      );
+
+    // 2. Fetch sales (select only required fields for memory efficiency)
     const sales = await prisma.sale.findMany({
       where: {
         tanggal: { gte: fromDate, lte: toDate },
         employee: {
           isHidden: false,
         },
+        item: {
+          status: { not: "Non-Aktif" },
+          isHidden: false,
+        },
       },
-      include: {
-        employee: true,
-        item: true,
+      select: {
+        qty: true,
+        tanggal: true,
+        isRetur: true,
+        employeeId: true,
+        employee: { select: { name: true } },
+        item: { select: { code: true, name: true, itemGroup: true } },
       },
     });
 
@@ -65,20 +85,25 @@ router.get("/leaderboard", async (req: Request, res: Response) => {
     for (const s of sales) {
       if (excludedEmpSet.has(s.employeeId)) continue;
 
-      const itemNameLower = s.item.name.toLowerCase();
-      const itemCodeLower = s.item.code.toLowerCase();
-      const isExcluded = Array.from(excludedPatternSet).some(
+      const itemNameLower = s.item.name.trim().toLowerCase();
+      const itemCodeLower = s.item.code.trim().toLowerCase();
+      const isExcluded = excludedPatterns.some(
         (p) => itemNameLower.includes(p) || itemCodeLower === p
       );
       if (isExcluded) continue;
 
-      // Calculate points strictly based on configured rules
+      // Calculate points: 1) Exact match first, 2) Longest substring match second
       let pointsPerUnit = 0;
-      const matchedRule = itemPoints.find(
+      const exactRule = sortedRules.find(
         (ip) =>
-          (itemCodeLower === ip.pattern.toLowerCase() || itemNameLower.includes(ip.pattern.toLowerCase())) &&
+          (itemCodeLower === ip.patternLower || itemNameLower === ip.patternLower) &&
           ip.startDate <= s.tanggal
       );
+      const matchedRule =
+        exactRule ||
+        sortedRules.find(
+          (ip) => itemNameLower.includes(ip.patternLower) && ip.startDate <= s.tanggal
+        );
 
       if (matchedRule) {
         pointsPerUnit = matchedRule.points;
@@ -89,7 +114,9 @@ router.get("/leaderboard", async (req: Request, res: Response) => {
       // If no point rule configured for this item, it earns 0 points
       if (pointsPerUnit <= 0) continue;
 
-      const earnedPoints = pointsPerUnit * Number(s.qty);
+      const rawQty = Number(s.qty);
+      const effectiveQty = s.isRetur && rawQty > 0 ? -rawQty : rawQty;
+      const earnedPoints = pointsPerUnit * effectiveQty;
 
       if (!empPointMap.has(s.employeeId)) {
         empPointMap.set(s.employeeId, {
@@ -103,13 +130,13 @@ router.get("/leaderboard", async (req: Request, res: Response) => {
 
       const emp = empPointMap.get(s.employeeId)!;
       emp.totalPoints += earnedPoints;
-      emp.totalQty += Number(s.qty);
+      emp.totalQty += effectiveQty;
 
       if (!emp.items.has(s.item.name)) {
         emp.items.set(s.item.name, { name: s.item.name, qty: 0, points: 0 });
       }
       const it = emp.items.get(s.item.name)!;
-      it.qty += Number(s.qty);
+      it.qty += effectiveQty;
       it.points += earnedPoints;
     }
 

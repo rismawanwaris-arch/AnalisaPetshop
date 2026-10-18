@@ -6,22 +6,27 @@ const router = Router();
 // GET /api/purchases/vendors - List vendor summary (Last order, total spend, count)
 router.get("/vendors", async (req: Request, res: Response) => {
   try {
+    const { from, to } = req.query;
+    const invoiceWhere: any = {};
+    if (from || to) {
+      invoiceWhere.tanggal = {};
+      if (from) invoiceWhere.tanggal.gte = new Date(String(from));
+      if (to) invoiceWhere.tanggal.lte = new Date(String(to));
+    }
+
     const vendors = await prisma.vendor.findMany({
       include: {
         invoices: {
+          where: invoiceWhere,
           select: {
             id: true,
             noFaktur: true,
             tanggal: true,
             total: true,
-            outlet: { select: { name: true } },
             items: {
               select: {
-                itemCode: true,
                 itemName: true,
                 qty: true,
-                harga: true,
-                subtotalItem: true,
               },
             },
           },

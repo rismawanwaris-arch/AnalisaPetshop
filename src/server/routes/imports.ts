@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import { prisma } from "../../lib/prisma.js";
+import { requireAuth } from "../middleware.js";
 import { parseSalesExcel } from "../../lib/parseSales.js";
 import { parsePurchaseExcel } from "../../lib/parsePurchases.js";
 import { parseMasterItemsExcel } from "../../lib/parseMasterItems.js";
@@ -11,6 +12,83 @@ const upload = multer({
 });
 
 const router = Router();
+
+// GET /api/imports/periods - Query all currently uploaded periods in DB (accessible for initial date range detection)
+router.get("/periods", async (req: Request, res: Response) => {
+  try {
+    const monthlySales: any[] = await prisma.$queryRaw`
+      SELECT 
+        TO_CHAR(tanggal, 'YYYY-MM') as month,
+        MIN(tanggal) as min_date,
+        MAX(tanggal) as max_date,
+        COUNT(DISTINCT tanggal)::int as days_count,
+        COUNT(*)::int as row_count
+      FROM sales
+      GROUP BY TO_CHAR(tanggal, 'YYYY-MM')
+      ORDER BY month DESC
+    `;
+
+    const monthlyPurchases: any[] = await prisma.$queryRaw`
+      SELECT 
+        TO_CHAR(tanggal, 'YYYY-MM') as month,
+        MIN(tanggal) as min_date,
+        MAX(tanggal) as max_date,
+        COUNT(DISTINCT tanggal)::int as days_count,
+        COUNT(*)::int as invoices_count,
+        COALESCE(SUM(total), 0)::float as total_amount
+      FROM purchase_invoices
+      GROUP BY TO_CHAR(tanggal, 'YYYY-MM')
+      ORDER BY month DESC
+    `;
+
+    const salesOverall = await prisma.sale.aggregate({
+      _min: { tanggal: true },
+      _max: { tanggal: true },
+      _count: { id: true },
+    });
+
+    const purchasesOverall = await prisma.purchaseInvoice.aggregate({
+      _min: { tanggal: true },
+      _max: { tanggal: true },
+      _count: { id: true },
+      _sum: { total: true },
+    });
+
+    res.json({
+      sales: {
+        minDate: salesOverall._min.tanggal,
+        maxDate: salesOverall._max.tanggal,
+        totalRows: salesOverall._count.id,
+        months: monthlySales.map((m) => ({
+          month: m.month,
+          minDate: m.min_date,
+          maxDate: m.max_date,
+          daysCount: m.days_count,
+          rowCount: m.row_count,
+        })),
+      },
+      purchases: {
+        minDate: purchasesOverall._min.tanggal,
+        maxDate: purchasesOverall._max.tanggal,
+        totalInvoices: purchasesOverall._count.id,
+        totalAmount: Number(purchasesOverall._sum.total || 0),
+        months: monthlyPurchases.map((m) => ({
+          month: m.month,
+          minDate: m.min_date,
+          maxDate: m.max_date,
+          daysCount: m.days_count,
+          invoicesCount: m.invoices_count,
+          totalAmount: m.total_amount,
+        })),
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Gagal mengambil data periode upload" });
+  }
+});
+
+// Require authentication for all import, preview, history, and delete routes below
+router.use(requireAuth);
 
 // ======================== PREVIEW & VERIFICATION ROUTES ========================
 
@@ -117,6 +195,21 @@ router.post("/preview/sales", upload.single("file"), async (req: Request, res: R
       alreadyUploadedDatesSample: alreadyUploadedDates.slice(0, 10),
       newDatesSample: newDates.slice(0, 10),
     };
+
+    // Validate outlets/branches against known Petshop outlets
+    const existingOutlets = await prisma.outlet.findMany({ select: { name: true } });
+    const knownOutletSet = new Set(existingOutlets.map((o) => o.name.trim().toUpperCase()));
+    if (knownOutletSet.size > 0) {
+      const fileOutlets = Array.from(new Set(rows.map((r) => r.cabang.trim().toUpperCase())));
+      const unknownOutlets = fileOutlets.filter(
+        (c) => !knownOutletSet.has(c) && !c.includes("PADASUKA") && !c.includes("PETSHOP")
+      );
+      if (unknownOutlets.length > 0) {
+        errors.unshift(
+          `PERINGATAN CABANG ASING: Ditemukan lokasi "${unknownOutlets.join(", ")}" yang belum terdaftar di Petshop. Pastikan file Excel bukan dari divisi/database lain!`
+        );
+      }
+    }
 
     res.json({
       type: "SALES",
@@ -772,80 +865,6 @@ router.post("/master-items", upload.single("file"), async (req: Request, res: Re
     res.json({ success: true, count: upsertCount, total: items.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Gagal memproses master item" });
-  }
-});
-
-// GET /api/imports/periods - Query all currently uploaded periods in DB
-router.get("/periods", async (req: Request, res: Response) => {
-  try {
-    const monthlySales: any[] = await prisma.$queryRaw`
-      SELECT 
-        TO_CHAR(tanggal, 'YYYY-MM') as month,
-        MIN(tanggal) as min_date,
-        MAX(tanggal) as max_date,
-        COUNT(DISTINCT tanggal)::int as days_count,
-        COUNT(*)::int as row_count
-      FROM sales
-      GROUP BY TO_CHAR(tanggal, 'YYYY-MM')
-      ORDER BY month DESC
-    `;
-
-    const monthlyPurchases: any[] = await prisma.$queryRaw`
-      SELECT 
-        TO_CHAR(tanggal, 'YYYY-MM') as month,
-        MIN(tanggal) as min_date,
-        MAX(tanggal) as max_date,
-        COUNT(DISTINCT tanggal)::int as days_count,
-        COUNT(*)::int as invoices_count,
-        COALESCE(SUM(total), 0)::float as total_amount
-      FROM purchase_invoices
-      GROUP BY TO_CHAR(tanggal, 'YYYY-MM')
-      ORDER BY month DESC
-    `;
-
-    const salesOverall = await prisma.sale.aggregate({
-      _min: { tanggal: true },
-      _max: { tanggal: true },
-      _count: { id: true },
-    });
-
-    const purchasesOverall = await prisma.purchaseInvoice.aggregate({
-      _min: { tanggal: true },
-      _max: { tanggal: true },
-      _count: { id: true },
-      _sum: { total: true },
-    });
-
-    res.json({
-      sales: {
-        minDate: salesOverall._min.tanggal,
-        maxDate: salesOverall._max.tanggal,
-        totalRows: salesOverall._count.id,
-        months: monthlySales.map((m) => ({
-          month: m.month,
-          minDate: m.min_date,
-          maxDate: m.max_date,
-          daysCount: m.days_count,
-          rowCount: m.row_count,
-        })),
-      },
-      purchases: {
-        minDate: purchasesOverall._min.tanggal,
-        maxDate: purchasesOverall._max.tanggal,
-        totalInvoices: purchasesOverall._count.id,
-        totalAmount: Number(purchasesOverall._sum.total || 0),
-        months: monthlyPurchases.map((m) => ({
-          month: m.month,
-          minDate: m.min_date,
-          maxDate: m.max_date,
-          daysCount: m.days_count,
-          invoicesCount: m.invoices_count,
-          totalAmount: m.total_amount,
-        })),
-      },
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || "Gagal mengambil data periode upload" });
   }
 });
 

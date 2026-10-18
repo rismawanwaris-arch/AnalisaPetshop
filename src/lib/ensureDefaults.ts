@@ -172,5 +172,20 @@ export async function ensureDefaults(branch: "BANDUNG" | "CIMAHI" = "BANDUNG") {
       where: { id: { in: orphanIds } },
     });
   }
+
+  // 7. Clean up expired or revoked sessions & prune activity logs older than 90 days
+  const now = new Date();
+  await prisma.session.deleteMany({
+    where: {
+      OR: [{ expiresAt: { lt: now } }, { revokedAt: { not: null } }],
+    },
+  });
+
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  await prisma.activityLog.deleteMany({
+    where: {
+      createdAt: { lt: ninetyDaysAgo },
+    },
+  });
 }
 

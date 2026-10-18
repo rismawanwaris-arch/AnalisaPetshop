@@ -7,6 +7,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { ensureDefaults } from "../lib/ensureDefaults.js";
+import { requireAuth } from "./middleware.js";
 import authRoutes from "./routes/auth.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import purchasesRoutes from "./routes/purchases.js";
@@ -47,21 +48,23 @@ app.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date(), port: PORT });
 });
 
-// API Routes
+// API Routes (Public: /api/auth, /api/points; Semi-public: /api/imports/periods)
 app.use("/api/auth", authRoutes);
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/purchases", purchasesRoutes);
-app.use("/api/sales", salesRoutes);
-app.use("/api/target", targetRoutes);
 app.use("/api/points", pointsRoutes);
-app.use("/api/master-items", masterItemsRoutes);
 app.use("/api/imports", importRoutes);
-app.use("/api/settings", settingsRoutes);
-app.use("/api/categories", categoriesRoutes);
-app.use("/api/outlets", outletsRoutes);
-app.use("/api/employees", employeesRoutes);
-app.use("/api/data-explorer", dataExplorerRoutes);
-app.use("/api/activity-log", activityLogRoutes);
+
+// Protected API Routes
+app.use("/api/dashboard", requireAuth, dashboardRoutes);
+app.use("/api/purchases", requireAuth, purchasesRoutes);
+app.use("/api/sales", requireAuth, salesRoutes);
+app.use("/api/target", requireAuth, targetRoutes);
+app.use("/api/master-items", requireAuth, masterItemsRoutes);
+app.use("/api/settings", requireAuth, settingsRoutes);
+app.use("/api/categories", requireAuth, categoriesRoutes);
+app.use("/api/outlets", requireAuth, outletsRoutes);
+app.use("/api/employees", requireAuth, employeesRoutes);
+app.use("/api/data-explorer", requireAuth, dataExplorerRoutes);
+app.use("/api/activity-log", requireAuth, activityLogRoutes);
 
 // Static frontend in production
 const distPath = fs.existsSync(path.resolve(process.cwd(), "dist"))

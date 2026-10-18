@@ -1,13 +1,22 @@
 import { Router, Request, Response } from "express";
 import { randomBytes } from "crypto";
+import rateLimit from "express-rate-limit";
 import { prisma } from "../../lib/prisma.js";
 import { hashPassword, verifyPassword, hashString } from "../../lib/password.js";
 import { requireAuth } from "../middleware.js";
 
 const router = Router();
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each IP to 20 login requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Terlalu banyak percobaan login. Silakan coba lagi setelah 15 menit." },
+});
+
 // POST /api/auth/login
-router.post("/login", async (req: Request, res: Response) => {
+router.post("/login", loginLimiter, async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -30,8 +39,9 @@ router.post("/login", async (req: Request, res: Response) => {
       isValid = verifyPassword(password, user.passwordHash);
     }
 
-    // 2. Break-glass fallback from .env
-    if (!isValid) {
+    // 2. Break-glass fallback from .env ONLY if user does not exist yet or ALLOW_ENV_OVERRIDE is explicitly enabled
+    const allowEnvFallback = !user || process.env.ALLOW_ENV_OVERRIDE === "true";
+    if (!isValid && allowEnvFallback) {
       if (trimmedUsername === "master" && password === masterEnvPass) {
         user = await prisma.user.upsert({
           where: { username: "master" },

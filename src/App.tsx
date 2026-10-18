@@ -1,26 +1,33 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import { Layout } from "./components/Layout.js";
 import { LoginPage } from "./pages/LoginPage.js";
-import { DashboardPage } from "./pages/DashboardPage.js";
-import { PurchasesPage } from "./pages/PurchasesPage.js";
-import { SalesPage } from "./pages/SalesPage.js";
-import { TargetReportPage } from "./pages/TargetReportPage.js";
-import { PointsPage } from "./pages/PointsPage.js";
-import { PublicPointsPage } from "./pages/PublicPointsPage.js";
-import { MasterItemsPage } from "./pages/MasterItemsPage.js";
-import { ItemCategoriesPage } from "./pages/ItemCategoriesPage.js";
-import { OutletsPage } from "./pages/OutletsPage.js";
-import { OutletDetailPage } from "./pages/OutletDetailPage.js";
-import { EmployeesPage } from "./pages/EmployeesPage.js";
-import { DataExplorerPage } from "./pages/DataExplorerPage.js";
-import { ActivityLogPage } from "./pages/ActivityLogPage.js";
-import { ImportPage } from "./pages/ImportPage.js";
-import { SettingsPage } from "./pages/SettingsPage.js";
 import { DateRangeProvider } from "./context/DateRangeContext.js";
 import { ThemeProvider } from "./context/ThemeContext.js";
 import { Loader2 } from "lucide-react";
+
+const DashboardPage = lazy(() => import("./pages/DashboardPage.js").then((m) => ({ default: m.DashboardPage })));
+const PurchasesPage = lazy(() => import("./pages/PurchasesPage.js").then((m) => ({ default: m.PurchasesPage })));
+const SalesPage = lazy(() => import("./pages/SalesPage.js").then((m) => ({ default: m.SalesPage })));
+const TargetReportPage = lazy(() => import("./pages/TargetReportPage.js").then((m) => ({ default: m.TargetReportPage })));
+const PointsPage = lazy(() => import("./pages/PointsPage.js").then((m) => ({ default: m.PointsPage })));
+const PublicPointsPage = lazy(() => import("./pages/PublicPointsPage.js").then((m) => ({ default: m.PublicPointsPage })));
+const MasterItemsPage = lazy(() => import("./pages/MasterItemsPage.js").then((m) => ({ default: m.MasterItemsPage })));
+const ItemCategoriesPage = lazy(() => import("./pages/ItemCategoriesPage.js").then((m) => ({ default: m.ItemCategoriesPage })));
+const OutletsPage = lazy(() => import("./pages/OutletsPage.js").then((m) => ({ default: m.OutletsPage })));
+const OutletDetailPage = lazy(() => import("./pages/OutletDetailPage.js").then((m) => ({ default: m.OutletDetailPage })));
+const EmployeesPage = lazy(() => import("./pages/EmployeesPage.js").then((m) => ({ default: m.EmployeesPage })));
+const DataExplorerPage = lazy(() => import("./pages/DataExplorerPage.js").then((m) => ({ default: m.DataExplorerPage })));
+const ActivityLogPage = lazy(() => import("./pages/ActivityLogPage.js").then((m) => ({ default: m.ActivityLogPage })));
+const ImportPage = lazy(() => import("./pages/ImportPage.js").then((m) => ({ default: m.ImportPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage.js").then((m) => ({ default: m.SettingsPage })));
+
+const PageLoader: React.FC = () => (
+  <div className="flex items-center justify-center min-h-[320px] w-full">
+    <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+  </div>
+);
 
 // Main App Router with Public & Protected Routes
 const MainApp: React.FC = () => {
@@ -39,61 +46,65 @@ const MainApp: React.FC = () => {
 
   return (
     <DateRangeProvider>
-      <Routes>
-        {/* Rute Publik: Papan Poin tanpa perlu login / akun */}
-        <Route path="/papan-poin" element={<PublicPointsPage />} />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Rute Publik: Papan Poin tanpa perlu login / akun */}
+          <Route path="/papan-poin" element={<PublicPointsPage />} />
 
-        {/* Jika belum login */}
-        {!user ? (
-          <>
-            <Route path="/points" element={<PublicPointsPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </>
-        ) : (
-          /* Jika sudah login */
-          <Route
-            path="*"
-            element={
-              <Layout>
-                <Routes>
-                  {/* Cabang Bandung */}
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/target" element={<TargetReportPage />} />
-                  <Route path="/purchases" element={<PurchasesPage />} />
-                  <Route path="/points" element={<PointsPage />} />
+          {/* Jika belum login */}
+          {!user ? (
+            <>
+              <Route path="/points" element={<PublicPointsPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </>
+          ) : (
+            /* Jika sudah login */
+            <Route
+              path="*"
+              element={
+                <Layout>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      {/* Cabang Bandung */}
+                      <Route path="/" element={<DashboardPage />} />
+                      <Route path="/target" element={<TargetReportPage />} />
+                      <Route path="/purchases" element={<PurchasesPage />} />
+                      <Route path="/points" element={<PointsPage />} />
 
-                  {/* Dimensi Analisis */}
-                  <Route path="/items" element={<MasterItemsPage />} />
-                  <Route path="/items/categories" element={<ItemCategoriesPage />} />
-                  <Route path="/outlets" element={<OutletsPage />} />
-                  <Route path="/outlets/:id" element={<OutletDetailPage />} />
-                  <Route path="/employees" element={<EmployeesPage />} />
-                  <Route path="/transactions" element={<SalesPage />} />
+                      {/* Dimensi Analisis */}
+                      <Route path="/items" element={<MasterItemsPage />} />
+                      <Route path="/items/categories" element={<ItemCategoriesPage />} />
+                      <Route path="/outlets" element={<OutletsPage />} />
+                      <Route path="/outlets/:id" element={<OutletDetailPage />} />
+                      <Route path="/employees" element={<EmployeesPage />} />
+                      <Route path="/transactions" element={<SalesPage />} />
 
-                  {/* Manajemen Data & Sistem */}
-                  <Route path="/import" element={<ImportPage />} />
-                  <Route path="/imports" element={<ImportPage />} />
-                  <Route
-                    path="/analisa-data"
-                    element={isMaster ? <DataExplorerPage /> : <Navigate to="/" replace />}
-                  />
-                  <Route path="/log" element={<ActivityLogPage />} />
+                      {/* Manajemen Data & Sistem */}
+                      <Route path="/import" element={<ImportPage />} />
+                      <Route path="/imports" element={<ImportPage />} />
+                      <Route
+                        path="/analisa-data"
+                        element={isMaster ? <DataExplorerPage /> : <Navigate to="/" replace />}
+                      />
+                      <Route path="/log" element={<ActivityLogPage />} />
 
-                  {/* Pengaturan: Hanya Tingkat Master */}
-                  <Route
-                    path="/settings"
-                    element={isMaster ? <SettingsPage /> : <Navigate to="/" replace />}
-                  />
+                      {/* Pengaturan: Hanya Tingkat Master */}
+                      <Route
+                        path="/settings"
+                        element={isMaster ? <SettingsPage /> : <Navigate to="/" replace />}
+                      />
 
-                  <Route path="/login" element={<Navigate to="/" replace />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </Layout>
-            }
-          />
-        )}
-      </Routes>
+                      <Route path="/login" element={<Navigate to="/" replace />} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </Suspense>
+                </Layout>
+              }
+            />
+          )}
+        </Routes>
+      </Suspense>
     </DateRangeProvider>
   );
 };

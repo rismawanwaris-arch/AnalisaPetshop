@@ -14,7 +14,7 @@ router.get("/report", async (req: Request, res: Response) => {
     toDate.setHours(23, 59, 59, 999);
 
     const diffTime = Math.abs(toDate.getTime() - fromDate.getTime());
-    const dayCount = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    const calendarDayCount = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
 
     // 1. Fetch Targets
     const targets = await prisma.target.findMany({
@@ -44,7 +44,11 @@ router.get("/report", async (req: Request, res: Response) => {
         outlet: { branch: String(branch) as any, isHidden: false },
         item: { status: { not: "Non-Aktif" }, isHidden: false },
       },
-      include: {
+      select: {
+        outletId: true,
+        tanggal: true,
+        labaRugi: true,
+        qty: true,
         outlet: { select: { id: true, name: true } },
         item: { select: { itemGroup: true } },
       },
@@ -62,8 +66,11 @@ router.get("/report", async (req: Request, res: Response) => {
     }>();
 
     const unmappedSet = new Set<string>();
+    const activeDateSet = new Set<string>();
 
     for (const s of sales) {
+      activeDateSet.add(s.tanggal.toISOString().split("T")[0]);
+
       if (!outletRowMap.has(s.outletId)) {
         outletRowMap.set(s.outletId, {
           outletId: s.outletId,
@@ -113,6 +120,9 @@ router.get("/report", async (req: Request, res: Response) => {
       row.totalQtyTrx += qty;
     }
 
+    // Gunakan jumlah hari aktif yang memiliki transaksi (jika ada), agar adil saat sebagian hari belum diimpor
+    const dayCount = activeDateSet.size > 0 ? activeDateSet.size : calendarDayCount;
+
     const rows = Array.from(outletRowMap.values()).sort((a, b) => b.totalSales - a.totalSales);
 
     res.json({
@@ -134,6 +144,7 @@ router.get("/report", async (req: Request, res: Response) => {
       from: fromDate.toISOString().split("T")[0],
       to: toDate.toISOString().split("T")[0],
       dayCount,
+      calendarDayCount,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

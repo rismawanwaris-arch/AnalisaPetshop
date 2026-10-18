@@ -90,18 +90,20 @@ router.post("/upload", upload.single("file"), async (req: Request, res: Response
       });
     }
 
-    let createdCount = 0;
-    let updatedCount = 0;
+    const existingItems = await prisma.item.findMany({
+      where: { branch: "BANDUNG" },
+      select: { id: true, code: true },
+    });
+    const existingCodeMap = new Map(existingItems.map((e) => [e.code, e.id]));
+
+    const toCreate: any[] = [];
+    const toUpdate: Array<{ id: number; data: any }> = [];
 
     for (const it of items) {
-      const existing = await prisma.item.findUnique({
-        where: { code_branch: { code: it.code, branch: "BANDUNG" } },
-        select: { id: true },
-      });
-
-      if (existing) {
-        await prisma.item.update({
-          where: { id: existing.id },
+      const existingId = existingCodeMap.get(it.code);
+      if (existingId) {
+        toUpdate.push({
+          id: existingId,
           data: {
             name: it.name,
             barcode: it.barcode,
@@ -120,32 +122,51 @@ router.post("/upload", upload.single("file"), async (req: Request, res: Response
             isFromSalesImport: false,
           },
         });
-        updatedCount++;
       } else {
-        await prisma.item.create({
-          data: {
-            code: it.code,
-            name: it.name,
-            barcode: it.barcode,
-            itemGroup: it.itemGroup,
-            unitBase: it.unitBase,
-            unitPurchase: it.unitPurchase,
-            lastPurchasePrice: it.lastPurchasePrice,
-            avgHpp: it.avgHpp,
-            priceRetail: it.priceRetail,
-            priceAgent: it.priceAgent,
-            priceOnline: it.priceOnline,
-            priceRepack: it.priceRepack,
-            priceBranch: it.priceBranch,
-            marginRetail: it.marginRetail,
-            status: it.status,
-            branch: "BANDUNG",
-            isFromSalesImport: false,
-          },
+        toCreate.push({
+          code: it.code,
+          name: it.name,
+          barcode: it.barcode,
+          itemGroup: it.itemGroup,
+          unitBase: it.unitBase,
+          unitPurchase: it.unitPurchase,
+          lastPurchasePrice: it.lastPurchasePrice,
+          avgHpp: it.avgHpp,
+          priceRetail: it.priceRetail,
+          priceAgent: it.priceAgent,
+          priceOnline: it.priceOnline,
+          priceRepack: it.priceRepack,
+          priceBranch: it.priceBranch,
+          marginRetail: it.marginRetail,
+          status: it.status,
+          branch: "BANDUNG" as const,
+          isFromSalesImport: false,
         });
-        createdCount++;
       }
     }
+
+    if (toCreate.length > 0) {
+      await prisma.item.createMany({
+        data: toCreate,
+        skipDuplicates: true,
+      });
+    }
+
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < toUpdate.length; i += CHUNK_SIZE) {
+      const chunk = toUpdate.slice(i, i + CHUNK_SIZE);
+      await prisma.$transaction(
+        chunk.map((u) =>
+          prisma.item.update({
+            where: { id: u.id },
+            data: u.data,
+          })
+        )
+      );
+    }
+
+    const createdCount = toCreate.length;
+    const updatedCount = toUpdate.length;
 
     // Record ActivityLog
     const userActor = req.user ? `${req.user.role}:${req.user.username}` : "SYSTEM";
