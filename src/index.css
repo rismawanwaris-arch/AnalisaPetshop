@@ -217,3 +217,142 @@ html.dark {
 .dark .shadow-sm {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
 }
+
+/* ==========================================================================
+   Smooth SaaS Motion & Micro-Interaction System
+   GPU-accelerated CSS animations with reduced-motion support
+   ========================================================================== */
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-5px);
+  }
+  40%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12px, -14px) scale(1.04);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-up {
+  animation: fadeUp 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-scale-up {
+  animation: scaleUp 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-backdrop-in {
+  animation: backdropIn 200ms ease-out both;
+}
+
+.animate-shake {
+  animation: shake 360ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.animate-float-slow {
+  animation: floatSlow 9s ease-in-out infinite;
+}
+
+/* Stagger delays for sequential card reveals */
+.stagger-1 { animation-delay: 40ms; }
+.stagger-2 { animation-delay: 90ms; }
+.stagger-3 { animation-delay: 140ms; }
+.stagger-4 { animation-delay: 190ms; }
+.stagger-5 { animation-delay: 240ms; }
+
+/* Subtle interactive card lift */
+.card-hover {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 200ms ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.08),
+              0 4px 10px -4px rgba(15, 23, 42, 0.04);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 14px 28px -8px rgba(0, 0, 0, 0.45),
+              0 4px 12px -4px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Tactile button press feedback across the app */
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-enter,
+  .animate-fade-up,
+  .animate-scale-up,
+  .animate-backdrop-in,
+  .animate-shake,
+  .animate-float-slow {
+    animation: none !important;
+  }
+  .card-hover:hover {
+    transform: none !important;
+  }
+  button:not(:disabled):active {
+    transform: none !important;
+  }
+}

@@ -23,6 +23,7 @@ import {
   Bar,
 } from "recharts";
 import { formatRupiah, formatNumber, formatDate } from "../lib/format.js";
+import { AnimatedNumber } from "../components/AnimatedNumber.js";
 import {
   DatePreset,
   getYesterdayYMD,
@@ -178,7 +179,7 @@ export const DashboardPage: React.FC = () => {
       {/* KPI 4 Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Omzet */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 card-hover animate-fade-up stagger-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Omzet</span>
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
@@ -186,16 +187,18 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-3 text-2xl font-black text-slate-900 tracking-tight">
-            {formatRupiah(summary?.totalOmzet)}
+            <AnimatedNumber value={summary?.totalOmzet} formatter={(v) => formatRupiah(Math.round(v))} />
           </div>
           <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 flex justify-between items-center">
             <span>HPP Penjualan</span>
-            <span className="font-semibold text-slate-700">{formatRupiah(summary?.totalHpp)}</span>
+            <span className="font-semibold text-slate-700">
+              <AnimatedNumber value={summary?.totalHpp} formatter={(v) => formatRupiah(Math.round(v))} />
+            </span>
           </div>
         </div>
 
         {/* Laba */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 card-hover animate-fade-up stagger-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Laba Kotor</span>
             <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -203,7 +206,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-3 text-2xl font-black text-blue-600 tracking-tight">
-            {formatRupiah(summary?.totalLaba)}
+            <AnimatedNumber value={summary?.totalLaba} formatter={(v) => formatRupiah(Math.round(v))} />
           </div>
           <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 flex justify-between items-center">
             <span>Margin Keuntungan</span>
@@ -214,7 +217,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Volume */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 card-hover animate-fade-up stagger-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Barang Terjual</span>
             <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
@@ -222,16 +225,18 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-3 text-2xl font-black text-slate-900 tracking-tight">
-            {formatNumber(summary?.totalQty)} <span className="text-sm font-normal text-slate-400">Pcs</span>
+            <AnimatedNumber value={summary?.totalQty} formatter={(v) => formatNumber(Math.round(v))} /> <span className="text-sm font-normal text-slate-400">Pcs</span>
           </div>
           <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 flex justify-between items-center">
             <span>Frekuensi Transaksi</span>
-            <span className="font-semibold text-slate-700">{formatNumber(summary?.totalTransaksi)} nota</span>
+            <span className="font-semibold text-slate-700">
+              <AnimatedNumber value={summary?.totalTransaksi} formatter={(v) => formatNumber(Math.round(v))} /> nota
+            </span>
           </div>
         </div>
 
         {/* Pegawai */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 card-hover animate-fade-up stagger-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Staff & Kasir</span>
             <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
@@ -239,17 +244,19 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-3 text-2xl font-black text-slate-900 tracking-tight">
-            {summary?.activeEmployees || 0} <span className="text-sm font-normal text-slate-400">Orang</span>
+            <AnimatedNumber value={summary?.activeEmployees || 0} /> <span className="text-sm font-normal text-slate-400">Orang</span>
           </div>
           <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 flex justify-between items-center">
             <span>Lokasi Aktif</span>
-            <span className="font-semibold text-slate-700">{summary?.activeOutlets || 0} Lokasi</span>
+            <span className="font-semibold text-slate-700">
+              <AnimatedNumber value={summary?.activeOutlets || 0} /> Lokasi
+            </span>
           </div>
         </div>
       </div>
 
       {/* Main Trend Chart: Dynamic based on settings */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs animate-fade-up stagger-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
             <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">

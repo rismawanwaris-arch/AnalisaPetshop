@@ -129,8 +129,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <aside className="w-full md:w-64 h-auto md:h-screen bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between border-r border-slate-800 select-none z-30">
         <div className="flex flex-col min-h-0 flex-1">
           {/* Brand Header */}
-          <div className="h-16 flex-shrink-0 flex items-center px-5 bg-slate-950/80 border-b border-slate-800/80 gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-950">
+          <div className="h-16 flex-shrink-0 flex items-center px-5 bg-slate-950/80 border-b border-slate-800/80 gap-3 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-950 transition-transform duration-200 group-hover:scale-105">
               <span className="text-lg">🐾</span>
             </div>
             <div className="min-w-0">
@@ -178,14 +178,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                             });
                           }
                         }}
-                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                        className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
                           isActive
-                            ? "bg-emerald-600 text-white shadow-xs shadow-emerald-900/50"
-                            : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                            ? "bg-emerald-600 text-white shadow-xs shadow-emerald-900/50 translate-x-0.5"
+                            : "text-slate-300 hover:text-white hover:bg-slate-800/60 hover:translate-x-0.5"
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-400"}`} />
+                          <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? "text-white" : "text-slate-400 group-hover:text-emerald-400"}`} />
                           <span className="truncate">{item.name}</span>
                         </div>
                         {item.badge && (
@@ -264,7 +264,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Top Navbar */}
         <header className="h-16 flex-shrink-0 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md transition-colors">
           <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Sistem Manajemen Analisis & Pembelian Petshop
             </span>
@@ -318,7 +318,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </header>
 
         {/* Page Container */}
-        <main className="flex-1 p-6 max-w-7xl w-full mx-auto">{children}</main>
+        <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
+          <div key={location.pathname} className="animate-page-enter">
+            {children}
+          </div>
+        </main>
       </div>
 
       {/* Change Password Modal */}

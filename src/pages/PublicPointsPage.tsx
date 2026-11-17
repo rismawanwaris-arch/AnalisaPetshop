@@ -22,6 +22,7 @@ import { formatRupiah, formatNumber } from "../lib/format.js";
 import { useDateRange } from "../context/DateRangeContext.js";
 import { useTheme } from "../context/ThemeContext.js";
 import { DateRangePicker } from "../components/DateRangePicker.js";
+import { AnimatedNumber } from "../components/AnimatedNumber.js";
 
 export const PublicPointsPage: React.FC = () => {
   const [expandedEmpId, setExpandedEmpId] = useState<number | null>(null);
@@ -127,10 +128,10 @@ export const PublicPointsPage: React.FC = () => {
       </header>
 
       {/* 2. Main Page Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-page-enter">
         {/* Hero Section */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 p-6 sm:p-8 text-white shadow-xl shadow-amber-900/10">
-          <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none animate-float-slow"></div>
           <div className="absolute left-1/3 bottom-0 w-80 h-40 bg-amber-400/20 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -160,7 +161,9 @@ export const PublicPointsPage: React.FC = () => {
                 <span className="text-[10px] uppercase font-bold text-amber-200 tracking-wider block">
                   Total Poin Akumulasi
                 </span>
-                <span className="text-lg font-black text-white">{formatNumber(totalAllPoints)}</span>
+                <span className="text-lg font-black text-white">
+                  <AnimatedNumber value={totalAllPoints} formatter={(v) => formatNumber(Math.round(v))} />
+                </span>
                 <span className="text-[10px] text-amber-200 block">dari {formatNumber(totalAllQty)} pcs barang</span>
               </div>
             </div>
@@ -172,7 +175,7 @@ export const PublicPointsPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             {/* Juara 2 (Silver) */}
             {top2 && (
-              <div className="order-2 md:order-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs relative overflow-hidden transition-all hover:shadow-md">
+              <div className="order-2 md:order-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs relative overflow-hidden card-hover animate-fade-up stagger-2">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full blur-xl -translate-y-6 translate-x-6 pointer-events-none"></div>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center text-2xl font-black shadow-inner">
@@ -200,7 +203,7 @@ export const PublicPointsPage: React.FC = () => {
 
             {/* Juara 1 (Gold) */}
             {top1 && (
-              <div className="order-1 md:order-2 bg-gradient-to-b from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 border-2 border-amber-400 dark:border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden transition-all hover:shadow-lg md:-translate-y-2">
+              <div className="order-1 md:order-2 bg-gradient-to-b from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 border-2 border-amber-400 dark:border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden card-hover animate-fade-up stagger-1 md:-translate-y-2">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-300/30 dark:bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div className="flex items-center gap-3">
                   <div className="w-14 h-14 rounded-2xl bg-amber-400 dark:bg-amber-500 text-amber-950 flex items-center justify-center text-3xl font-black shadow-lg shadow-amber-500/30">
@@ -231,7 +234,7 @@ export const PublicPointsPage: React.FC = () => {
 
             {/* Juara 3 (Bronze) */}
             {top3 && (
-              <div className="order-3 md:order-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs relative overflow-hidden transition-all hover:shadow-md">
+              <div className="order-3 md:order-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs relative overflow-hidden card-hover animate-fade-up stagger-3">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 dark:bg-amber-950/20 rounded-full blur-xl -translate-y-6 translate-x-6 pointer-events-none"></div>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 flex items-center justify-center text-2xl font-black shadow-inner">
