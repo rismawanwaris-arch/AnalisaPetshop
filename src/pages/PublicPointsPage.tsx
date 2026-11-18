@@ -178,8 +178,8 @@ export const PublicPointsPage: React.FC = () => {
               <div className="order-2 md:order-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs relative overflow-hidden card-hover animate-fade-up stagger-2">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full blur-xl -translate-y-6 translate-x-6 pointer-events-none"></div>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center text-2xl font-black shadow-inner">
-                    🥈
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-inner shrink-0">
+                    <Medal className="w-6 h-6" />
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Peringkat 2</span>
@@ -191,11 +191,15 @@ export const PublicPointsPage: React.FC = () => {
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Perolehan Poin</span>
-                    <span className="text-lg font-black text-slate-800 dark:text-slate-200">{formatNumber(top2.totalPoints)} Poin</span>
+                    <span className="text-lg font-black text-slate-800 dark:text-slate-200">
+                      <AnimatedNumber value={top2.totalPoints} formatter={(v) => formatNumber(Math.round(v))} /> Poin
+                    </span>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Estimasi Reward</span>
-                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{formatRupiah(top2.insentif)}</span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                      <AnimatedNumber value={top2.insentif} formatter={(v) => formatRupiah(Math.round(v))} />
+                    </span>
                   </div>
                 </div>
               </div>
@@ -203,11 +207,11 @@ export const PublicPointsPage: React.FC = () => {
 
             {/* Juara 1 (Gold) */}
             {top1 && (
-              <div className="order-1 md:order-2 bg-gradient-to-b from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 border-2 border-amber-400 dark:border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden card-hover animate-fade-up stagger-1 md:-translate-y-2">
+              <div className="order-1 md:order-2 bg-gradient-to-b from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 border-2 border-amber-400 dark:border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden card-hover shimmer-overlay animate-fade-up stagger-1 md:-translate-y-2">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-300/30 dark:bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-2xl bg-amber-400 dark:bg-amber-500 text-amber-950 flex items-center justify-center text-3xl font-black shadow-lg shadow-amber-500/30">
-                    👑
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 text-amber-950 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">
+                    <Crown className="w-7 h-7" />
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
@@ -222,11 +226,15 @@ export const PublicPointsPage: React.FC = () => {
                 <div className="mt-4 pt-4 border-t border-amber-200 dark:border-amber-900/50 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block">Total Poin</span>
-                    <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">{formatNumber(top1.totalPoints)} Poin</span>
+                    <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">
+                      <AnimatedNumber value={top1.totalPoints} formatter={(v) => formatNumber(Math.round(v))} /> Poin
+                    </span>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block">Estimasi Insentif</span>
-                    <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400">{formatRupiah(top1.insentif)}</span>
+                    <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400">
+                      <AnimatedNumber value={top1.insentif} formatter={(v) => formatRupiah(Math.round(v))} />
+                    </span>
                   </div>
                 </div>
               </div>
@@ -237,8 +245,8 @@ export const PublicPointsPage: React.FC = () => {
               <div className="order-3 md:order-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs relative overflow-hidden card-hover animate-fade-up stagger-3">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 dark:bg-amber-950/20 rounded-full blur-xl -translate-y-6 translate-x-6 pointer-events-none"></div>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 flex items-center justify-center text-2xl font-black shadow-inner">
-                    🥉
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-200 dark:from-amber-950/70 dark:to-orange-950/60 text-amber-800 dark:text-amber-300 flex items-center justify-center shadow-inner shrink-0">
+                    <Award className="w-6 h-6" />
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Peringkat 3</span>
@@ -250,11 +258,15 @@ export const PublicPointsPage: React.FC = () => {
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Perolehan Poin</span>
-                    <span className="text-lg font-black text-slate-800 dark:text-slate-200">{formatNumber(top3.totalPoints)} Poin</span>
+                    <span className="text-lg font-black text-slate-800 dark:text-slate-200">
+                      <AnimatedNumber value={top3.totalPoints} formatter={(v) => formatNumber(Math.round(v))} /> Poin
+                    </span>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Estimasi Reward</span>
-                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{formatRupiah(top3.insentif)}</span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                      <AnimatedNumber value={top3.insentif} formatter={(v) => formatRupiah(Math.round(v))} />
+                    </span>
                   </div>
                 </div>
               </div>

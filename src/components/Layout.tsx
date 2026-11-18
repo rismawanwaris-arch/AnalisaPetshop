@@ -21,6 +21,10 @@ import {
   KeyRound,
   Sun,
   Moon,
+  PawPrint,
+  Crown,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.js";
 import { useTheme } from "../context/ThemeContext.js";
@@ -122,25 +126,53 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     .filter((section) => section.items.length > 0);
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-50/75 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 transition-colors">
-      {/* Sidebar - Pinned height, scrollable menu */}
-      <aside className="w-full md:w-64 h-auto md:h-screen bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between border-r border-slate-800 select-none z-30">
+      {/* Mobile Sidebar Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs md:hidden animate-backdrop-in"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar - Desktop fixed, Mobile animated slide-over drawer */}
+      <aside
+        className={`${
+          mobileMenuOpen ? "fixed inset-y-0 left-0 flex animate-slide-in-left" : "hidden"
+        } md:static md:flex w-72 md:w-64 h-screen bg-slate-900 text-slate-300 flex-shrink-0 flex-col justify-between border-r border-slate-800 select-none z-50 md:z-30`}
+      >
         <div className="flex flex-col min-h-0 flex-1">
           {/* Brand Header */}
-          <div className="h-16 flex-shrink-0 flex items-center px-5 bg-slate-950/80 border-b border-slate-800/80 gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-950 transition-transform duration-200 group-hover:scale-105">
-              <span className="text-lg">🐾</span>
+          <div className="h-16 flex-shrink-0 flex items-center justify-between px-5 bg-slate-950/80 border-b border-slate-800/80 gap-3 group">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-950 transition-transform duration-200 group-hover:scale-105 shrink-0">
+                <PawPrint className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-white font-bold tracking-tight text-sm truncate block leading-tight">
+                  Analisa Petshop
+                </span>
+                <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Cabang & Gudang
+                </span>
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="text-white font-bold tracking-tight text-sm truncate block leading-tight">
-                Analisa Petshop
-              </span>
-              <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Cabang & Gudang
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Tutup menu navigasi"
+              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Navigation Sections */}
@@ -221,7 +253,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                 }`}
               >
-                {isMaster ? "👑" : "🛡️"}
+                {isMaster ? <Crown className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
               </div>
               <div className="min-w-0">
                 <span className="text-white font-bold text-xs truncate block leading-tight">
@@ -262,10 +294,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main Content Area - Scrollable independently */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
         {/* Top Navbar */}
-        <header className="h-16 flex-shrink-0 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <header className="h-16 flex-shrink-0 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md transition-colors">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Buka menu navigasi"
+              className="md:hidden p-2 rounded-lg text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
               Sistem Manajemen Analisis & Pembelian Petshop
             </span>
           </div>
@@ -294,8 +334,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <span className="font-bold text-slate-800 dark:text-slate-100 block text-xs leading-none">
                   {user?.displayName || user?.username}
                 </span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-400 font-semibold uppercase tracking-wider">
-                  {isMaster ? "👑 Tingkat Master" : "🛡️ Tingkat Admin"}
+                <span className="text-[10px] text-slate-400 dark:text-slate-400 font-semibold uppercase tracking-wider inline-flex items-center justify-end gap-1">
+                  {isMaster ? (
+                    <>
+                      <Crown className="w-3 h-3 text-amber-500" /> Tingkat Master
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-3 h-3 text-emerald-500" /> Tingkat Admin
+                    </>
+                  )}
                 </span>
               </div>
               <button

@@ -347,7 +347,7 @@ export const DashboardPage: React.FC = () => {
       {/* Grid: Top 10 SKU & Outlet Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Top 10 SKU */}
-        <div className="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-4">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900 tracking-tight">Top 10 Barang Terlaris</h3>
@@ -366,14 +366,14 @@ export const DashboardPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {topItems?.map((it: any) => (
-                  <tr key={it.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={it.id} className="hover:bg-slate-50/80 transition-colors duration-150">
                     <td className="py-2.5 px-3">
                       <div className="font-bold text-slate-800">{it.name}</div>
                       <div className="text-[10px] text-slate-400 font-mono">{it.code} • {it.group}</div>
                     </td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700">{formatNumber(it.qty)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatRupiah(it.omzet)}</td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-emerald-600">{formatRupiah(it.laba)}</td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-slate-700 tabular-nums">{formatNumber(it.qty)}</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-slate-900 tabular-nums">{formatRupiah(it.omzet)}</td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-emerald-600 tabular-nums">{formatRupiah(it.laba)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -382,7 +382,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Outlet Breakdown */}
-        <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between card-hover animate-fade-up stagger-5">
           <div>
             <h3 className="text-sm font-bold text-slate-900 tracking-tight mb-1">
               Perbandingan Penjualan Lokasi
@@ -393,28 +393,28 @@ export const DashboardPage: React.FC = () => {
               {outletPerformance?.map((o: any) => {
                 const pct = summary?.totalOmzet ? ((o.omzet / summary.totalOmzet) * 100).toFixed(1) : 0;
                 return (
-                  <div key={o.id} className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2">
+                  <div key={o.id} className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2 transition-colors duration-200 hover:border-emerald-200 dark:hover:border-emerald-800/60">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-sm text-slate-800">{o.name}</span>
-                      <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md tabular-nums">
                         {pct}%
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                      <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${pct}%` }}></div>
+                      <div className="bg-emerald-500 h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%` }}></div>
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
                       <div>
                         <span className="text-slate-400 block text-[10px]">Omzet</span>
-                        <span className="font-bold text-slate-800">{formatRupiah(o.omzet)}</span>
+                        <span className="font-bold text-slate-800 tabular-nums">{formatRupiah(o.omzet)}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">Laba</span>
-                        <span className="font-bold text-blue-600">{formatRupiah(o.laba)}</span>
+                        <span className="font-bold text-blue-600 tabular-nums">{formatRupiah(o.laba)}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">Volume</span>
-                        <span className="font-semibold text-slate-700">{formatNumber(o.qty)} pcs</span>
+                        <span className="font-semibold text-slate-700 tabular-nums">{formatNumber(o.qty)} pcs</span>
                       </div>
                     </div>
                   </div>

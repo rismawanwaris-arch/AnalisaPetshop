@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
-import { Lock, User as UserIcon, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowRight, Loader2, Award } from "lucide-react";
+import { Lock, User as UserIcon, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowRight, Loader2, Award, PawPrint } from "lucide-react";
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -55,8 +55,8 @@ export const LoginPage: React.FC = () => {
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
           {/* Logo & Header */}
           <div className="text-center space-y-3 mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white text-3xl shadow-lg shadow-emerald-950/60 ring-4 ring-emerald-500/20 animate-scale-up">
-              🐾
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white shadow-lg shadow-emerald-950/60 ring-4 ring-emerald-500/20 animate-scale-up">
+              <PawPrint className="w-8 h-8" />
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight text-white">Analisa Petshop</h1>

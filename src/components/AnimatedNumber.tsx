@@ -61,5 +61,5 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
     };
   }, [target, duration]);
 
-  return <span className={className}>{formatter(displayValue)}</span>;
+  return <span className={`tabular-nums ${className || ""}`}>{formatter(displayValue)}</span>;
 };

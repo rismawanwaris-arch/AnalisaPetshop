@@ -3,8 +3,23 @@
 @variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  :root {
+    --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-fast: 160ms;
+    --motion-base: 260ms;
+    --motion-slow: 400ms;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid rgba(16, 185, 129, 0.65);
+    outline-offset: 2px;
   }
 }
 
@@ -286,16 +301,36 @@ html.dark {
   }
 }
 
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+
 .animate-page-enter {
-  animation: pageEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: pageEnter var(--motion-base, 260ms) var(--ease-expo, cubic-bezier(0.16, 1, 0.3, 1)) both;
 }
 
 .animate-fade-up {
-  animation: fadeUp 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeUp var(--motion-slow, 380ms) var(--ease-expo, cubic-bezier(0.16, 1, 0.3, 1)) both;
 }
 
 .animate-scale-up {
-  animation: scaleUp 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: scaleUp var(--motion-base, 240ms) var(--ease-expo, cubic-bezier(0.16, 1, 0.3, 1)) both;
 }
 
 .animate-backdrop-in {
@@ -308,6 +343,25 @@ html.dark {
 
 .animate-float-slow {
   animation: floatSlow 9s ease-in-out infinite;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft var(--motion-base, 260ms) var(--ease-expo, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+.shimmer-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  animation: shimmerSweep 4.5s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* Stagger delays for sequential card reveals */
@@ -346,7 +400,9 @@ button:not(:disabled):active {
   .animate-scale-up,
   .animate-backdrop-in,
   .animate-shake,
-  .animate-float-slow {
+  .animate-float-slow,
+  .animate-slide-in-left,
+  .shimmer-overlay::after {
     animation: none !important;
   }
   .card-hover:hover {
