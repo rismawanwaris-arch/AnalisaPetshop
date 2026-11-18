@@ -265,6 +265,11 @@ export const DashboardPage: React.FC = () => {
             </h3>
             <p className="text-xs text-slate-500">
               Menampilkan data tren: {activeMetrics.map((m) => m === "laba" ? "Laba Bersih" : m === "omzet" ? "Total Omzet" : "Volume (Qty)").join(", ")}
+              {trends && trends.length > 0 && (
+                <span className="ml-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                  ({formatDate(trends[0].tanggal)} – {formatDate(trends[trends.length - 1].tanggal)} • {trends.length} hari)
+                </span>
+              )}
             </p>
           </div>
 

@@ -79,7 +79,53 @@ router.get("/", async (req: Request, res: Response) => {
       day.count += 1;
     }
 
-    const trends = Array.from(dailyMap.values()).sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+    let trends = Array.from(dailyMap.values()).sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+
+    // Jika rentang filter < 7 hari (misal default "Kemarin"), tampilkan grafik tren 7 hari ke belakang hingga tanggal akhir
+    if (to) {
+      const endD = new Date(String(to));
+      const startD = from ? new Date(String(from)) : null;
+      const spanDays = startD ? Math.round((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+      if (!startD || spanDays < 6) {
+        const trendStart = new Date(endD);
+        trendStart.setUTCDate(trendStart.getUTCDate() - 6);
+
+        const trendWhere: any = {
+          item: where.item,
+          ...(where.outletId ? { outletId: where.outletId } : {}),
+          ...(where.outlet ? { outlet: where.outlet } : {}),
+          tanggal: {
+            gte: trendStart,
+            lte: endD,
+          },
+        };
+
+        const groupedTrends = await prisma.sale.groupBy({
+          by: ["tanggal"],
+          where: trendWhere,
+          _sum: {
+            subtotal: true,
+            labaRugi: true,
+            qty: true,
+          },
+          _count: {
+            id: true,
+          },
+          orderBy: {
+            tanggal: "asc",
+          },
+        });
+
+        trends = groupedTrends.map((t) => ({
+          tanggal: t.tanggal.toISOString().split("T")[0],
+          omzet: Number(t._sum.subtotal || 0),
+          laba: Number(t._sum.labaRugi || 0),
+          qty: Number(t._sum.qty || 0),
+          count: t._count.id,
+        }));
+      }
+    }
 
     // 2. Top 10 Items
     const itemGroup = await prisma.sale.groupBy({
