@@ -5,6 +5,7 @@ import { formatRupiah, formatNumber, formatDate } from "../lib/format.js";
 import { useDateRange } from "../context/DateRangeContext.js";
 import { DateRangePicker } from "../components/DateRangePicker.js";
 import { useAuth } from "../context/AuthContext.js";
+import { AnimatedNumber } from "../components/AnimatedNumber.js";
 
 export const DataExplorerPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -140,21 +141,29 @@ export const DataExplorerPage: React.FC = () => {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Baris Data</span>
-          <span className="text-lg font-black text-slate-900 mt-1 block">{formatNumber(total)} Baris</span>
+          <span className="text-lg font-black text-slate-900 mt-1 block">
+            <AnimatedNumber value={total} formatter={(v) => formatNumber(Math.round(v))} /> Baris
+          </span>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-2">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Nilai Subtotal</span>
-          <span className="text-lg font-black text-slate-900 mt-1 block">{formatRupiah(summary?.totalOmzet)}</span>
+          <span className="text-lg font-black text-slate-900 mt-1 block">
+            <AnimatedNumber value={summary?.totalOmzet} formatter={(v) => formatRupiah(Math.round(v))} />
+          </span>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-3">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Laba Rugi</span>
-          <span className="text-lg font-black text-emerald-600 mt-1 block">{formatRupiah(summary?.totalLaba)}</span>
+          <span className="text-lg font-black text-emerald-600 mt-1 block">
+            <AnimatedNumber value={summary?.totalLaba} formatter={(v) => formatRupiah(Math.round(v))} />
+          </span>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-4">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rata-rata Nilai Trx</span>
-          <span className="text-lg font-black text-blue-600 mt-1 block">{formatRupiah(summary?.avgOmzet)}</span>
+          <span className="text-lg font-black text-blue-600 mt-1 block">
+            <AnimatedNumber value={summary?.avgOmzet} formatter={(v) => formatRupiah(Math.round(v))} />
+          </span>
         </div>
       </div>
 

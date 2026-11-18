@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import { formatRupiah, formatNumber, formatDate } from "../lib/format.js";
 import { useDateRange } from "../context/DateRangeContext.js";
+import { AnimatedNumber } from "../components/AnimatedNumber.js";
 
 export const OutletDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -173,7 +174,7 @@ export const OutletDetailPage: React.FC = () => {
         <>
           {/* 4 KPI Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Omzet</span>
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -181,14 +182,14 @@ export const OutletDetailPage: React.FC = () => {
                 </div>
               </div>
               <div className="mt-2.5 text-2xl font-black text-slate-900">
-                {formatRupiah(summary?.totalOmzet)}
+                <AnimatedNumber value={summary?.totalOmzet} formatter={(v) => formatRupiah(Math.round(v))} />
               </div>
               <span className="text-[11px] text-slate-400 mt-1 block">
                 Periode {fromDate} s/d {toDate}
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Laba Bersih</span>
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -196,7 +197,7 @@ export const OutletDetailPage: React.FC = () => {
                 </div>
               </div>
               <div className="mt-2.5 text-2xl font-black text-emerald-600">
-                {formatRupiah(summary?.totalLaba)}
+                <AnimatedNumber value={summary?.totalLaba} formatter={(v) => formatRupiah(Math.round(v))} />
               </div>
               <span className="text-[11px] text-slate-400 mt-1 block">
                 Margin:{" "}
@@ -206,7 +207,7 @@ export const OutletDetailPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Qty Barang Terjual</span>
                 <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
@@ -214,14 +215,14 @@ export const OutletDetailPage: React.FC = () => {
                 </div>
               </div>
               <div className="mt-2.5 text-2xl font-black text-slate-900">
-                {formatNumber(summary?.totalQty)} <span className="text-sm font-semibold text-slate-400">pcs</span>
+                <AnimatedNumber value={summary?.totalQty} formatter={(v) => formatNumber(Math.round(v))} /> <span className="text-sm font-semibold text-slate-400">pcs</span>
               </div>
               <span className="text-[11px] text-slate-400 mt-1 block">
                 {items.length} jenis produk berbeda terjual
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs card-hover animate-fade-up stagger-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Jumlah Transaksi</span>
                 <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
@@ -229,7 +230,7 @@ export const OutletDetailPage: React.FC = () => {
                 </div>
               </div>
               <div className="mt-2.5 text-2xl font-black text-slate-900">
-                {formatNumber(summary?.totalTransaksi)} <span className="text-sm font-semibold text-slate-400">struk</span>
+                <AnimatedNumber value={summary?.totalTransaksi} formatter={(v) => formatNumber(Math.round(v))} /> <span className="text-sm font-semibold text-slate-400">struk</span>
               </div>
               <span className="text-[11px] text-slate-400 mt-1 block">
                 Dilayani oleh {employees.length} kasir/staff

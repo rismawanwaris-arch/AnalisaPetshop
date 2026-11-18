@@ -241,11 +241,11 @@ html.dark {
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -256,7 +256,7 @@ html.dark {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -364,6 +364,31 @@ html.dark {
   pointer-events: none;
 }
 
+.animate-fade-in {
+  animation: backdropIn 220ms ease-out both;
+}
+
+/* Global automatic stagger for all pages inside Layout */
+.animate-page-enter > div > *:nth-child(1) { animation: fadeUp 320ms var(--ease-expo) 0ms backwards; }
+.animate-page-enter > div > *:nth-child(2) { animation: fadeUp 340ms var(--ease-expo) 45ms backwards; }
+.animate-page-enter > div > *:nth-child(3) { animation: fadeUp 360ms var(--ease-expo) 90ms backwards; }
+.animate-page-enter > div > *:nth-child(4) { animation: fadeUp 380ms var(--ease-expo) 135ms backwards; }
+.animate-page-enter > div > *:nth-child(5) { animation: fadeUp 400ms var(--ease-expo) 180ms backwards; }
+.animate-page-enter > div > *:nth-child(6) { animation: fadeUp 420ms var(--ease-expo) 225ms backwards; }
+
+/* Smooth table row hover & modal transitions across all menus */
+table tbody tr {
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+div.fixed.inset-0:not(.animate-backdrop-in) {
+  animation: backdropIn 200ms ease-out both;
+}
+
+div.fixed.inset-0 > div:not(.animate-scale-up):not(.animate-slide-in-left) {
+  animation: scaleUp 240ms var(--ease-expo) both;
+}
+
 /* Stagger delays for sequential card reveals */
 .stagger-1 { animation-delay: 40ms; }
 .stagger-2 { animation-delay: 90ms; }
@@ -402,6 +427,10 @@ button:not(:disabled):active {
   .animate-shake,
   .animate-float-slow,
   .animate-slide-in-left,
+  .animate-fade-in,
+  .animate-page-enter > div > *,
+  div.fixed.inset-0,
+  div.fixed.inset-0 > div,
   .shimmer-overlay::after {
     animation: none !important;
   }

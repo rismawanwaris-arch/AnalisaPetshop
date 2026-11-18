@@ -4,6 +4,7 @@ import { TrendingUp, AlertCircle } from "lucide-react";
 import { formatRupiah, formatNumber } from "../lib/format.js";
 import { useDateRange } from "../context/DateRangeContext.js";
 import { DateRangePicker } from "../components/DateRangePicker.js";
+import { AnimatedNumber } from "../components/AnimatedNumber.js";
 
 export const TargetReportPage: React.FC = () => {
   const { fromDate, toDate, setFromDate, setToDate, setPreset } = useDateRange();
@@ -67,19 +68,25 @@ export const TargetReportPage: React.FC = () => {
 
       {/* Target Comparison Bar */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs card-hover animate-fade-up stagger-1">
           <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider block">Target Dryfood ({dayCount} Hari)</span>
-          <div className="mt-2 text-xl font-bold text-slate-900">{formatRupiah(targets?.all?.DRYFOOD)}</div>
+          <div className="mt-2 text-xl font-bold text-slate-900">
+            <AnimatedNumber value={targets?.all?.DRYFOOD} formatter={(v) => formatRupiah(Math.round(v))} />
+          </div>
           <span className="text-[11px] text-slate-400">Target per konter: {formatRupiah(targets?.perkonter?.DRYFOOD)}</span>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs card-hover animate-fade-up stagger-2">
           <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider block">Target Wetfood ({dayCount} Hari)</span>
-          <div className="mt-2 text-xl font-bold text-slate-900">{formatRupiah(targets?.all?.WETFOOD)}</div>
+          <div className="mt-2 text-xl font-bold text-slate-900">
+            <AnimatedNumber value={targets?.all?.WETFOOD} formatter={(v) => formatRupiah(Math.round(v))} />
+          </div>
           <span className="text-[11px] text-slate-400">Target per konter: {formatRupiah(targets?.perkonter?.WETFOOD)}</span>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs card-hover animate-fade-up stagger-3">
           <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider block">Target Aksesoris ({dayCount} Hari)</span>
-          <div className="mt-2 text-xl font-bold text-amber-600">{formatRupiah(targets?.all?.AKSESORIS)}</div>
+          <div className="mt-2 text-xl font-bold text-amber-600">
+            <AnimatedNumber value={targets?.all?.AKSESORIS} formatter={(v) => formatRupiah(Math.round(v))} />
+          </div>
           <span className="text-[11px] text-slate-400">Target per konter: {formatRupiah(targets?.perkonter?.AKSESORIS)}</span>
         </div>
       </div>

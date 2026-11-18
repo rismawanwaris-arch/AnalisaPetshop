@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { formatRupiah, formatNumber, formatDate, daysAgo } from "../lib/format.js";
 import { useDateRange, getCurrentMonthRange, getLastMonthRange } from "../context/DateRangeContext.js";
+import { AnimatedNumber } from "../components/AnimatedNumber.js";
 
 const PurchasesPageContent: React.FC = () => {
   const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null);
@@ -324,12 +325,12 @@ const PurchasesPageContent: React.FC = () => {
       {/* 3. 4 KPI Stat Cards (Matching Gambar 1) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Belanja Masuk */}
-        <div className="bg-white dark:bg-slate-900/95 p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs transition-colors">
+        <div className="bg-white dark:bg-slate-900/95 p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs card-hover animate-fade-up stagger-1">
           <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
             Total Belanja Masuk
           </span>
           <div className="text-xl sm:text-2xl font-black text-emerald-500 dark:text-emerald-400 mt-1.5 tracking-tight truncate">
-            {formatRupiah(summary?.totalBelanja || 0)}
+            <AnimatedNumber value={summary?.totalBelanja || 0} formatter={(v) => formatRupiah(Math.round(v))} />
           </div>
           <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
             Nilai kotor seluruh faktur pembelian
@@ -337,12 +338,12 @@ const PurchasesPageContent: React.FC = () => {
         </div>
 
         {/* Card 2: Total Nota / Faktur */}
-        <div className="bg-white dark:bg-slate-900/95 p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs transition-colors">
+        <div className="bg-white dark:bg-slate-900/95 p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs card-hover animate-fade-up stagger-2">
           <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
             Total Nota / Faktur
           </span>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1.5 tracking-tight">
-            {formatNumber(summary?.totalNota || 0)}{" "}
+            <AnimatedNumber value={summary?.totalNota || 0} formatter={(v) => formatNumber(Math.round(v))} />{" "}
             <span className="text-xs font-medium text-slate-400">nota</span>
           </div>
           <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
@@ -351,12 +352,12 @@ const PurchasesPageContent: React.FC = () => {
         </div>
 
         {/* Card 3: Suplier Aktif */}
-        <div className="bg-white dark:bg-slate-900/95 p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs transition-colors">
+        <div className="bg-white dark:bg-slate-900/95 p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs card-hover animate-fade-up stagger-3">
           <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
             Suplier Aktif
           </span>
           <div className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1.5 tracking-tight">
-            {summary?.suplierAktif || 0}{" "}
+            <AnimatedNumber value={summary?.suplierAktif || 0} />{" "}
             <span className="text-xs font-medium text-slate-400">suplier</span>
           </div>
           <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
@@ -365,12 +366,12 @@ const PurchasesPageContent: React.FC = () => {
         </div>
 
         {/* Card 4: Total Kuantitas Masuk */}
-        <div className="bg-white dark:bg-slate-900/95 p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs transition-colors">
+        <div className="bg-white dark:bg-slate-900/95 p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs card-hover animate-fade-up stagger-4">
           <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
             Total Kuantitas Masuk
           </span>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1.5 tracking-tight">
-            {formatNumber(summary?.totalKuantitas || 0)}{" "}
+            <AnimatedNumber value={summary?.totalKuantitas || 0} formatter={(v) => formatNumber(Math.round(v))} />{" "}
             <span className="text-xs font-medium text-slate-400">pcs</span>
           </div>
           <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
