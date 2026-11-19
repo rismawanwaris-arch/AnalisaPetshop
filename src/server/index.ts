@@ -32,11 +32,31 @@ const PORT = process.env.PORT || 3001;
 
 // Security & Middlewares
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: true, credentials: true }));
+const configuredOrigins = (process.env.ALLOWED_ORIGIN || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(
+  cors((req, callback) => {
+    const origin = req.headers.origin;
+    if (!origin) {
+      return callback(null, { origin: false });
+    }
+    const host = req.headers.host;
+    const isSameHost = host && (origin === `http://${host}` || origin === `https://${host}`);
+    const isDevLocal =
+      process.env.NODE_ENV !== "production" &&
+      (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:"));
+    if (isSameHost || isDevLocal || configuredOrigins.includes(origin)) {
+      return callback(null, { origin: true, credentials: true });
+    }
+    return callback(null, { origin: false });
+  })
+);
 app.use(compression());
 app.use(cookieParser());
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 // Initialize defaults on start
 ensureDefaults("BANDUNG").catch((err) => {

@@ -98,6 +98,17 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
+const safeUserSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  role: true,
+  isActive: true,
+  roleId: true,
+  customRole: true,
+  createdAt: true,
+};
+
 // ================= AKUN & SESI =================
 router.post("/users", async (req: Request, res: Response) => {
   try {
@@ -110,8 +121,9 @@ router.post("/users", async (req: Request, res: Response) => {
         displayName,
         passwordHash: hashPassword(password),
         role,
-        roleId: roleId ? parseInt(roleId) : null,
+        roleId: roleId ? parseInt(roleId, 10) : null,
       },
+      select: safeUserSelect,
     });
     res.json(user);
   } catch (err: any) {
@@ -121,16 +133,18 @@ router.post("/users", async (req: Request, res: Response) => {
 
 router.put("/users/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "ID user tidak valid" });
+
     const { displayName, password, role, roleId, isActive } = req.body;
     const data: any = {};
     if (displayName !== undefined) data.displayName = displayName;
     if (role !== undefined) data.role = role;
-    if (roleId !== undefined) data.roleId = roleId ? parseInt(roleId) : null;
+    if (roleId !== undefined) data.roleId = roleId ? parseInt(roleId, 10) : null;
     if (isActive !== undefined) data.isActive = Boolean(isActive);
     if (password) data.passwordHash = hashPassword(password);
 
-    const user = await prisma.user.update({ where: { id }, data });
+    const user = await prisma.user.update({ where: { id }, data, select: safeUserSelect });
     res.json(user);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -139,7 +153,11 @@ router.put("/users/:id", async (req: Request, res: Response) => {
 
 router.delete("/users/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "ID user tidak valid" });
+    if (id === req.user?.id) {
+      return res.status(400).json({ error: "Tidak dapat menghapus akun Anda sendiri yang sedang aktif." });
+    }
     await prisma.user.delete({ where: { id } });
     res.json({ success: true });
   } catch (err: any) {
@@ -149,7 +167,8 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
 
 router.delete("/sessions/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "ID sesi tidak valid" });
     await prisma.session.delete({ where: { id } });
     res.json({ success: true });
   } catch (err: any) {

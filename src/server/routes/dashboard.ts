@@ -14,12 +14,26 @@ router.get("/", async (req: Request, res: Response) => {
         isHidden: false,
       },
     };
-    if (outletId) where.outletId = parseInt(String(outletId));
+    if (outletId) {
+      const parsedOutletId = parseInt(String(outletId), 10);
+      if (!Number.isInteger(parsedOutletId) || parsedOutletId <= 0) {
+        return res.status(400).json({ error: "outletId tidak valid" });
+      }
+      where.outletId = parsedOutletId;
+    }
     if (branch) where.outlet = { branch: String(branch) as any };
     if (from || to) {
       where.tanggal = {};
-      if (from) where.tanggal.gte = new Date(String(from));
-      if (to) where.tanggal.lte = new Date(String(to));
+      if (from) {
+        const fromD = new Date(String(from));
+        if (Number.isNaN(fromD.getTime())) return res.status(400).json({ error: "Format tanggal 'from' tidak valid" });
+        where.tanggal.gte = fromD;
+      }
+      if (to) {
+        const toD = new Date(String(to));
+        if (Number.isNaN(toD.getTime())) return res.status(400).json({ error: "Format tanggal 'to' tidak valid" });
+        where.tanggal.lte = toD;
+      }
     }
 
     // 1. Total Aggregates

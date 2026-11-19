@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../lib/prisma.js";
+import { requireMaster } from "../middleware.js";
 
 const router = Router();
 
@@ -164,8 +165,8 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/target - Update target configurations
-router.put("/", async (req: Request, res: Response) => {
+// PUT /api/target - Update target configurations (Master only)
+router.put("/", requireMaster, async (req: Request, res: Response) => {
   try {
     const { targets, branch = "BANDUNG" } = req.body;
     if (!Array.isArray(targets)) return res.status(400).json({ error: "Format target tidak valid" });

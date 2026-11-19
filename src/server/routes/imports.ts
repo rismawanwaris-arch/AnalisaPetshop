@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import { prisma } from "../../lib/prisma.js";
-import { requireAuth } from "../middleware.js";
+import { requireAuth, requireMaster } from "../middleware.js";
 import { parseSalesExcel } from "../../lib/parseSales.js";
 import { parsePurchaseExcel } from "../../lib/parsePurchases.js";
 import { parseMasterItemsExcel } from "../../lib/parseMasterItems.js";
@@ -881,10 +881,13 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/imports/:id - Delete an import batch and cascade sales/purchases
-router.delete("/:id", async (req: Request, res: Response) => {
+// DELETE /api/imports/:id - Delete an import batch and cascade sales/purchases (Master only)
+router.delete("/:id", requireMaster, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "ID batch tidak valid" });
+    }
     await prisma.sale.deleteMany({ where: { importId: id } });
     await prisma.purchaseInvoice.deleteMany({ where: { importId: id } });
     await prisma.importBatch.delete({ where: { id } });
